@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/icon_next.png</file>
+        <file>resources/icon_prev.png</file>
+        <file>translations/FileManager_zh_CN.qm</file>
+    </qresource>
+</RCC>
