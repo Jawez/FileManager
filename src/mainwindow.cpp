@@ -278,12 +278,23 @@ void MainWindow::about()
         "<p><b>FileManagerDemo</b></p>"
 
         "<p>This is a demo of the file manager.</p>"
+        "<p>Project:&nbsp;&nbsp;<a href=\"https://github.com/Jawez/FileManager\">Github repository</a>"
+        "<p>Video:&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"https://www.bilibili.com/video/BV1ng411L7gx\">BiliBili video</a>"
         "<p></p>"
-        "<p>author Javier Zhou</p>"
-        "<p>date   2021/08/21</p>"
+        "<p>Author:&nbsp;&nbsp;Javier Zhou</p>"
+        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/08/29</p>"
         ;
 
-    QMessageBox::about(this, tr("About"), message);
+//    QMessageBox::about(this, tr("About"), message);
+    QMessageBox *msgBox = new QMessageBox(this);
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setWindowTitle(tr("About"));
+    msgBox->setText(message);
+    QPixmap pm(QLatin1String(":/resources/icon_app_64.png"));
+    if (!pm.isNull())
+        msgBox->setIconPixmap(pm);
+
+    msgBox->exec();
 }
 
 void MainWindow::aboutQt()

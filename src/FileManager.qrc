@@ -3,5 +3,6 @@
         <file>resources/icon_next.png</file>
         <file>resources/icon_prev.png</file>
         <file>translations/FileManager_zh_CN.qm</file>
+        <file>resources/icon_app_64.png</file>
     </qresource>
 </RCC>

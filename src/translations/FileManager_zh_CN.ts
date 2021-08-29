@@ -190,7 +190,7 @@
 <context>
     <name>FileWidget</name>
     <message numerus="yes">
-        <location filename="../filewidget.cpp" line="549"/>
+        <location filename="../filewidget.cpp" line="556"/>
         <source>%n item(s) selected</source>
         <comment>number of selected item</comment>
         <translation>
@@ -198,29 +198,29 @@
         </translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1412"/>
-        <location filename="../filewidget.cpp" line="1432"/>
+        <location filename="../filewidget.cpp" line="1419"/>
+        <location filename="../filewidget.cpp" line="1439"/>
         <source>&amp;Open</source>
         <translation>打开(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1433"/>
+        <location filename="../filewidget.cpp" line="1440"/>
         <source>Copy Pat&amp;h</source>
         <translation>复制路径(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1454"/>
+        <location filename="../filewidget.cpp" line="1461"/>
         <source>Expa&amp;nd</source>
         <translation>展开(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1455"/>
+        <location filename="../filewidget.cpp" line="1462"/>
         <source>Colla&amp;pse</source>
         <translation>折叠(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1386"/>
-        <location filename="../filewidget.cpp" line="1457"/>
+        <location filename="../filewidget.cpp" line="1393"/>
+        <location filename="../filewidget.cpp" line="1464"/>
         <source>E&amp;xpand All</source>
         <translation>展开全部(&amp;X)</translation>
     </message>
@@ -230,35 +230,35 @@
         <translation>确认(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1387"/>
-        <location filename="../filewidget.cpp" line="1458"/>
+        <location filename="../filewidget.cpp" line="1394"/>
+        <location filename="../filewidget.cpp" line="1465"/>
         <source>Coll&amp;apse All</source>
         <translation>折叠全部(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1417"/>
-        <location filename="../filewidget.cpp" line="1438"/>
-        <location filename="../filewidget.cpp" line="1460"/>
+        <location filename="../filewidget.cpp" line="1424"/>
+        <location filename="../filewidget.cpp" line="1445"/>
+        <location filename="../filewidget.cpp" line="1467"/>
         <source>Cu&amp;t</source>
         <oldsource>C&amp;ut</oldsource>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1418"/>
-        <location filename="../filewidget.cpp" line="1439"/>
-        <location filename="../filewidget.cpp" line="1461"/>
+        <location filename="../filewidget.cpp" line="1425"/>
+        <location filename="../filewidget.cpp" line="1446"/>
+        <location filename="../filewidget.cpp" line="1468"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1444"/>
+        <location filename="../filewidget.cpp" line="1451"/>
         <source>Shortcut &amp;Info</source>
         <translation>快捷方式信息(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1420"/>
-        <location filename="../filewidget.cpp" line="1442"/>
-        <location filename="../filewidget.cpp" line="1470"/>
+        <location filename="../filewidget.cpp" line="1427"/>
+        <location filename="../filewidget.cpp" line="1449"/>
+        <location filename="../filewidget.cpp" line="1477"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -273,20 +273,20 @@
         <translation>&lt;p&gt;未知路径：&lt;/p&gt;%1</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1472"/>
+        <location filename="../filewidget.cpp" line="1479"/>
         <source>Rena&amp;me</source>
         <oldsource>&amp;Rename</oldsource>
         <translation>重命名(&amp;M)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1380"/>
+        <location filename="../filewidget.cpp" line="1387"/>
         <source>R&amp;efresh</source>
         <oldsource>Re&amp;fresh</oldsource>
         <translation>刷新(&amp;E)</translation>
     </message>
     <message numerus="yes">
-        <location filename="../filewidget.cpp" line="537"/>
-        <location filename="../filewidget.cpp" line="565"/>
+        <location filename="../filewidget.cpp" line="544"/>
+        <location filename="../filewidget.cpp" line="572"/>
         <source> %n item(s)</source>
         <comment>number of the item</comment>
         <translation>
@@ -294,50 +294,50 @@
         </translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1390"/>
-        <location filename="../filewidget.cpp" line="1464"/>
+        <location filename="../filewidget.cpp" line="1397"/>
+        <location filename="../filewidget.cpp" line="1471"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1391"/>
-        <location filename="../filewidget.cpp" line="1465"/>
+        <location filename="../filewidget.cpp" line="1398"/>
+        <location filename="../filewidget.cpp" line="1472"/>
         <source>Paste &amp;Shortcut</source>
         <oldsource>Paste Sym&amp;link</oldsource>
         <translation>粘贴快捷方式(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1394"/>
-        <location filename="../filewidget.cpp" line="1475"/>
+        <location filename="../filewidget.cpp" line="1401"/>
+        <location filename="../filewidget.cpp" line="1482"/>
         <source>Ne&amp;w</source>
         <oldsource>&amp;New</oldsource>
         <translation>新建(&amp;W)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1395"/>
-        <location filename="../filewidget.cpp" line="1476"/>
+        <location filename="../filewidget.cpp" line="1402"/>
+        <location filename="../filewidget.cpp" line="1483"/>
         <source>&amp;Folder</source>
         <translation>文件夹(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1397"/>
-        <location filename="../filewidget.cpp" line="1478"/>
+        <location filename="../filewidget.cpp" line="1404"/>
+        <location filename="../filewidget.cpp" line="1485"/>
         <source>&amp;Text</source>
         <translation>文本文件(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1467"/>
+        <location filename="../filewidget.cpp" line="1474"/>
         <source>Create &amp;Shortcut</source>
         <translation>创建快捷方式(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1585"/>
+        <location filename="../filewidget.cpp" line="1592"/>
         <source>New Folder</source>
         <extracomment>new system folder</extracomment>
         <translation></translation>
     </message>
     <message>
-        <location filename="../filewidget.cpp" line="1593"/>
+        <location filename="../filewidget.cpp" line="1600"/>
         <source>New File</source>
         <extracomment>new system file</extracomment>
         <translation></translation>
@@ -402,7 +402,7 @@
         <translation>&lt;p&gt;语言设置将在重启后生效。&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="286"/>
+        <location filename="../mainwindow.cpp" line="291"/>
         <source>About</source>
         <translation></translation>
     </message>
