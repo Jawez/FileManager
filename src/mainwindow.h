@@ -3,15 +3,12 @@
 
 #include <QMainWindow>
 #include <QShortcut>
+#include <QCloseEvent>
 
 #include "filesystemmodel.h"
-#include "dockwidget.h"
+#include "navdockwidget.h"
+#include "filedockwidget.h"
 
-#define CONFIG_FILE         "/config.ini"
-
-#define LANGUAGE_PATTERN    ":/translations/FileManager_%1.qm"
-#define LANGUAGE_CHINESE    "zh_CN"
-#define LANGUAGE_ENGLISH    "en_US"
 
 class MainWindow : public QMainWindow
 {
@@ -22,8 +19,8 @@ public:
     ~MainWindow();
 
 private:
-    DockWidget *dirDock;
-    QDockWidget *fileDock;
+    NavDockWidget *navDock;
+    FileDockWidget *fileDock;
     FileSystemModel *fileModel;
 
     QString appLanguage;
@@ -46,6 +43,9 @@ private:
 
     void loadTranslation();
     void languageChanged(const QString &lang);
+
+    void loadWindowInfo();
+    void saveWindowInfo();
 
 public slots:
     void about();

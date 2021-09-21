@@ -1,4 +1,5 @@
 #include "filewidget.h"
+#include "settings.h"
 
 #include <QtDebug>
 #include <QApplication>
@@ -15,8 +16,10 @@
 #include <QUrl>
 
 
-FileWidget::FileWidget(QAbstractItemModel *model, QWidget *parent) : QWidget(parent)
+FileWidget::FileWidget(const QString &tag, QAbstractItemModel *model, QWidget *parent) : QWidget(parent)
 {
+    name = tag;
+
     // init file model
     FileSystemModel *fileModel = (FileSystemModel *)model;
 //    connect(fileModel, &FileSystemModel::fileRenamed, this, &FileWidget::onFileRenamed);
@@ -58,8 +61,10 @@ FileWidget::FileWidget(QAbstractItemModel *model, QWidget *parent) : QWidget(par
     pathBoxInit();
     widgetLayoutInit();
 
-    // add first tab
-    fileWidgetAddTab();
+//    // add first tab->add in loadFileWidgetInfo()
+//    fileWidgetAddTab();
+
+    loadFileWidgetInfo();
 }
 
 FileWidget::~FileWidget()
@@ -134,6 +139,7 @@ void FileWidget::tabWidgetInit()
 
 //    connect(tabBar, &QTabBar::tabBarClicked, this, &FileWidget::onTabBarClicked);       // handle in currentChanged()'s slot
     connect(tabBar, &QTabBar::currentChanged, this, &FileWidget::onCurrentChanged);
+    connect(tabBar, &QTabBar::tabMoved, this, &FileWidget::onTabMoved);
     connect(tabBar, &QTabBar::tabCloseRequested, this, &FileWidget::onTabCloseRequested);
 }
 
@@ -208,7 +214,7 @@ void FileWidget::addTreeView()
     connect(treeView, &QTreeView::customContextMenuRequested, this, &FileWidget::contextMenu);
 
     connect(treeView, &QTreeView::expanded, this, &FileWidget::onExpanded);
-    connect(treeView, &TreeView::treeViewGotFocus, this, &FileWidget::refreshTreeView);
+    connect(treeView, &TreeView::treeViewGotFocus, this, &FileWidget::refreshTreeViewNotSort);
 
 //    connect(treeView->header(), &QHeaderView::sectionClicked, this, &FileWidget::onSectionClicked);
     connect(treeView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &FileWidget::onSelectionChanged);
@@ -311,7 +317,6 @@ void FileWidget::onComboBoxReturnPressed()
 {
     QString path = pathBox->currentText();
     qDebug() << QString("onComboBoxReturnPressed %1").arg(path);
-
 }
 
 void FileWidget::onComboBoxActivated(int index)
@@ -343,8 +348,7 @@ void FileWidget::onComboBoxActivated(int index)
 
     QFileInfo info(path);
     if (info.isDir()) {
-        updateCurrentPath(path);
-        updateRecord();
+        cdPath(path);
     } else {    // file
 //        displayNotificationMessage(tr("Error path"), tr("<p>Error path:</p>%1").arg(path), QMessageBox::Information);
         openFile(path);
@@ -443,6 +447,15 @@ void FileWidget::onRecordTriggered(QAction *action)
             break;
         }
     }
+}
+
+
+void FileWidget::cdPath(const QString &path)
+{
+    if (path.isEmpty())
+        return;
+    updateCurrentPath(path);
+    updateRecord();
 }
 
 void FileWidget::updateRecord()
@@ -750,6 +763,18 @@ void FileWidget::onCurrentChanged(int index)
     }
 }
 
+void FileWidget::onTabMoved(int from, int to)
+{
+    qDebug() << QString("onTabMoved from %1, to %1").arg(from, to);
+
+    // not handle from==to
+    int minIndex = from<to?from:to;
+    int maxIndex = from>to?from:to;
+    tabInfo *tmp = tabList.at(minIndex);
+    tabList[minIndex] = tabList.at(maxIndex);
+    tabList[maxIndex] = tmp;
+}
+
 void FileWidget::onTabCloseRequested(int index)
 {
     qDebug() << QString("onTabCloseRequested index %1").arg(index);
@@ -836,8 +861,7 @@ void FileWidget::onTreeViewDoubleClicked(const QModelIndex &index)
 
     // If the file is a symlink, this function returns true if the target is a directory (not the symlink)
     if (info.isDir()) {
-        updateCurrentPath(target);
-        updateRecord();
+        cdPath(target);
     } else {    //    else if (info.isFile())
         openFile(target);
     }
@@ -1198,6 +1222,33 @@ void FileWidget::copySelectedItem()
     qDebug() << QString("copy selected indexes %1").arg(indexes.count());
 
     setMimeDataAction(indexes, Qt::CopyAction);
+
+    if (indexes.count() == 1) {
+//        treeView->selectionModel()->setCurrentIndex(indexes.first(), QItemSelectionModel::Clear);
+        treeView->selectionModel()->clearSelection();
+    }
+}
+
+void FileWidget::pasteMimeDataAction(const QModelIndex &index)
+{
+    // handle "." and ".."
+    QString fileName = index.siblingAtColumn(0).data().toString();
+    qDebug() << QString("paste to %1").arg(fileName);
+    if (dirIsDotAndDotDot(fileName)) {
+        qDebug() << QString(".. return");
+        return;
+    }
+
+    QFileInfo info = proxyModel->fileInfo(index);
+    // do nothing when selected shortcut
+    if (!info.isShortcut()) {
+        if (info.isDir()) {
+            mimeDataAction(index);   // only set index for dir
+        } else {
+            // the dirPathFromIndex() in mimeDataAction() will return files absolutePath(), no filename
+            mimeDataAction(index);
+        }
+    }
 }
 
 void FileWidget::pasteSelectedItem()
@@ -1207,34 +1258,19 @@ void FileWidget::pasteSelectedItem()
 
     QModelIndexList indexes = treeView->selectionModel()->selectedRows(0);
     qDebug() << QString("paste selected indexes %1").arg(indexes.count());
-    if (indexes.count() > 1) {
-        return;
-    }
+//    if (indexes.count() > 1) {
+//        treeView->selectionModel()->clearSelection();
+////        return;
+//    }
 
     Qt::DropAction mimeAct = ((FileSystemModel *)proxyModel->srcModel())->getMimeAct();
     if (mimeAct == Qt::MoveAction || mimeAct == Qt::CopyAction) {
-        if (indexes.isEmpty())      // clicked blank space
+        if (indexes.isEmpty()) {        // clicked blank space
             mimeDataAction();
-        else {
-            QModelIndex index = indexes.first();
-            // handle "." and ".."
-            QString fileName = index.siblingAtColumn(0).data().toString();
-            qDebug() << QString("paste to %1").arg(fileName);
-            if (dirIsDotAndDotDot(fileName)) {
-                qDebug() << QString(".. return");
-                return;
-            }
-
-            QFileInfo info = proxyModel->fileInfo(index);
-            // do nothing when selected shortcut
-            if (!info.isShortcut()) {
-                if (info.isDir()) {
-                    mimeDataAction(indexes.first());   // only set index for dir
-                } else {
-                    // the dirPathFromIndex() in mimeDataAction() will return files absolutePath(), no filename
-                    mimeDataAction(indexes.first());
-                }
-            }
+        } else if (indexes.count() > 1) {
+            mimeDataAction();
+        } else {
+            pasteMimeDataAction(indexes.first());
         }
     }
 }
@@ -1270,7 +1306,7 @@ void FileWidget::deleteSelectedItem()
             ((FileSystemModel *)proxyModel->srcModel())->deleteTarget(path);
         }
 
-        refreshTreeView();  // refresh the shortcut's dir of the deleted target
+        refreshTreeViewNotSort();  // refresh the shortcut's dir of the deleted target
     }
 }
 
@@ -1306,6 +1342,13 @@ void FileWidget::refreshExpandedFolder(const QString &dir)
     fileModel->setRootPath(root);
 }
 
+void FileWidget::refreshModelData(const QString &dir)
+{
+    // reset root path, fetch files or directories
+    ((FileSystemModel *)proxyModel->srcModel())->refreshDir(dir);
+    refreshExpandedFolder(dir);
+}
+
 void FileWidget::refreshTreeView()
 {
     if (!treeView->isVisible()) {
@@ -1320,20 +1363,31 @@ void FileWidget::refreshTreeView()
     treeView->selectionModel()->clearSelection();
 }
 
-void FileWidget::updateTreeView(const QString &dir)
+void FileWidget::refreshTreeViewNotSort()
+{
+    if (!treeView->isVisible()) {
+//        qDebug() << QString("treeView not visible") << treeView;
+        return;
+    }
+
+    qDebug() << QString("refresh");
+    updateTreeView(treeViewPath, false);
+}
+
+void FileWidget::updateTreeView(const QString &dir, bool sort)
 {
     if (dir.isEmpty())
         return;
 
-    // reset root path, fetch files or directories
-    ((FileSystemModel *)proxyModel->srcModel())->refreshDir(dir);
-    refreshExpandedFolder(dir);
+    refreshModelData(dir);
 
-    // update page area(tree view and tab)
-    QModelIndex index = proxyModel->proxyIndex(dir);
-    treeView->setRootIndex(index);
-    treeView->sortByColumn(0, Qt::AscendingOrder);
-    treeView->update();
+    if (sort) {
+        // update page area(tree view and tab)
+        QModelIndex index = proxyModel->proxyIndex(dir);
+        treeView->setRootIndex(index);
+        treeView->sortByColumn(0, Qt::AscendingOrder);
+        treeView->update();
+    }
 }
 
 
@@ -1540,6 +1594,7 @@ void FileWidget::contextMenu(const QPoint &pos)
 
     } else if (action == copyAction) {
         setMimeDataAction(indexes, Qt::CopyAction);
+        treeView->selectionModel()->clearSelection();
 
     } else if (action == symlinkAction) {   // only for one item situation
         setMimeDataAction(indexes, Qt::CopyAction);
@@ -1614,12 +1669,78 @@ void FileWidget::onVisibilityChanged(bool visible)
     qDebug() << QString("onVisibilityChanged %1").arg(visible);
 
     if (visible) {
-        refreshTreeView();
+        refreshTreeViewNotSort();
     }
 }
 
 void FileWidget::onNavigateBarClicked(const QString &path)
 {
-    updateCurrentPath(path);
-    updateRecord();
+    cdPath(path);
+}
+
+void FileWidget::loadFileWidgetInfo()
+{
+    bool loadInfo = false;
+//    qDebug() << QString("loadFileWidgetInfo");
+
+    for (int i = 0; i < MAX_TAB_COUNT; i++) {
+        QStringList dirList = readArraySettings(QString("%1%2").arg(name).arg(i));
+        qDebug() << dirList;
+        if (dirList.isEmpty()) {
+            break;      // no data to load, break
+        }
+
+        QString path = dirList.takeFirst();     // first is current tab's dir path
+        if (path.isEmpty())
+            continue;
+
+        fileWidgetAddTab();
+//        qDebug() << QString("loadFileWidgetInfo %1").arg(path);
+        cdPath(path);
+        foreach (QString dir, dirList) {
+            treeView->expand(proxyModel->proxyIndex(dir));
+        }
+
+        loadInfo = true;
+    }
+
+    if (!loadInfo) {
+        fileWidgetAddTab();
+    } else {
+        // load current tab index
+        QVariant index = readSettings(name, CONFIG_TAB_INDEX);
+        if (index.isValid() && index.toInt() < tabList.count()) {
+            tabWidget->setCurrentIndex(index.toInt());
+        }
+    }
+}
+
+void FileWidget::saveFileWidgetInfo()
+{
+//    qDebug() << QString("saveFileWidgetInfo") << name;
+
+    // save current tab index
+    writeSettings(name, CONFIG_TAB_INDEX, tabWidget->currentIndex());
+
+    for (int i = 0; i < tabList.count(); i++) {
+        tabInfo *tab = tabList.at(i);
+        TreeView *view = (TreeView *)tabWidget->widget(i);
+
+        QStringList dirList = {tab->path};      // first is current tab's dir path
+
+        QModelIndex index = view->indexAt(QPoint(0, 0));
+        while (index.isValid()) {
+            if (view->isExpanded(index)) {
+                QFileInfo info = proxyModel->fileInfo(index);
+                if (info.fileName() != "." && info.fileName() != "..") {
+                    dirList.append(info.absoluteFilePath());
+                }
+            }
+            index = view->indexBelow(index);
+        }
+
+//        qDebug() << dirList;
+
+        writeArraySettings(QString("%1%2").arg(name).arg(i), dirList);
+    }
 }

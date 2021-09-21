@@ -1,5 +1,5 @@
-#ifndef DOCKWIDGET_H
-#define DOCKWIDGET_H
+#ifndef NAVDOCKWIDGET_H
+#define NAVDOCKWIDGET_H
 
 #include <QDockWidget>
 
@@ -12,16 +12,18 @@
 #include "treeview.h"
 
 
-class DockWidget : public QDockWidget
+class NavDockWidget : public QDockWidget
 {
     Q_OBJECT
 public:
-    DockWidget(QAbstractItemModel *model);
-    ~DockWidget();
+    NavDockWidget(QAbstractItemModel *model);
+    ~NavDockWidget();
 
     virtual QSize sizeHint() const;
 
     void refreshTreeView();
+    void loadDockInfo();
+    void saveDockInfo();
 
 private:
     FileSystemModel *fileModel;     // can not delete here
@@ -36,7 +38,7 @@ private slots:
     void onTreeViewClicked(const QModelIndex &index);
 
 signals:
-    void dockWidgetClicked(const QString path);
+    void navDockClicked(const QString path);
 };
 
-#endif // DOCKWIDGET_H
+#endif // NAVDOCKWIDGET_H

@@ -39,13 +39,17 @@ class FileWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit FileWidget(QAbstractItemModel *model, QWidget *parent = nullptr);
+    QString name;       // used to save and load settings
+
+    explicit FileWidget(const QString &tag, QAbstractItemModel *model, QWidget *parent = nullptr);
     ~FileWidget();
 
     virtual QSize sizeHint() const;
 
     QTreeView *getView() const { return treeView; }
     void fileWidgetAddTab();
+    void loadFileWidgetInfo();
+    void saveFileWidgetInfo();
 
 public slots:    // for shortcut
     void cutSelectedItem();
@@ -116,14 +120,17 @@ private:
     void widgetLayoutInit();
 
     // widget control
+    void cdPath(const QString &path);
     void updateRecord();
     void showMyComputer();
     void updateStatusBar();
     void updateSelectionInfo();
     void updateCurrentPath(const QString &dir);
     void updateCurrentTab(int index);
-    void updateTreeView(const QString &dir = "");
+    void updateTreeView(const QString &dir, bool sort = true);
     void refreshExpandedFolder(const QString &dir);
+    void refreshModelData(const QString &dir);
+    void refreshTreeViewNotSort();
 
     // history menu
     void hisPathSwitch(const QString &path);
@@ -141,6 +148,7 @@ private:
 
     void setMimeDataAction(const QModelIndexList &indexes, Qt::DropAction action);
     void mimeDataAction(const QModelIndex &index = QModelIndex(), Qt::DropAction action = Qt::IgnoreAction);
+    void pasteMimeDataAction(const QModelIndex &index);
 
     void contextMenu(const QPoint &pos);
 
@@ -155,6 +163,7 @@ private slots:
     void onTabBarAddTab();
     void onTabBarClicked(int index);
     void onCurrentChanged(int index);
+    void onTabMoved(int from, int to);
     void onTabCloseRequested(int index);
 
     // tree view

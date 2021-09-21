@@ -1,11 +1,12 @@
-#include "dockwidget.h"
+#include "navdockwidget.h"
+#include "settings.h"
 
 #include <QtDebug>
 #include <QSortFilterProxyModel>
 #include <QStyleFactory>
 
 
-DockWidget::DockWidget(QAbstractItemModel *model)
+NavDockWidget::NavDockWidget(QAbstractItemModel *model)
 {
     fileModel = (FileSystemModel *)model;
 
@@ -16,22 +17,24 @@ DockWidget::DockWidget(QAbstractItemModel *model)
     treeViewInit();
 
     setWidget(treeView);
+
+    loadDockInfo();
 }
 
-DockWidget::~DockWidget()
+NavDockWidget::~NavDockWidget()
 {
     treeView->deleteLater();
     proxyModel->deleteLater();
     fileModel = nullptr;
 }
 
-QSize DockWidget::sizeHint() const
+QSize NavDockWidget::sizeHint() const
 {
     return QSize(200, -1);
 }
 
 
-void DockWidget::fileModelInit()
+void NavDockWidget::fileModelInit()
 {
     proxyModel->setSourceModel(fileModel);
     proxyModel->enableFilter(true);
@@ -42,7 +45,7 @@ void DockWidget::fileModelInit()
 //    fileModel->setReadOnly(false);
 }
 
-void DockWidget::treeViewInit()
+void NavDockWidget::treeViewInit()
 {
     treeView->setModel(proxyModel);
 
@@ -57,10 +60,10 @@ void DockWidget::treeViewInit()
     treeView->setDropIndicatorShown(true);
     treeView->setDragDropMode(QAbstractItemView::DragDrop);     // move target on FileSystemModel, not copy
 
-    connect(treeView, &QTreeView::expanded, this, &DockWidget::onExpanded);
-    connect(treeView, &TreeView::treeViewGotFocus, this, &DockWidget::refreshTreeView);
+    connect(treeView, &QTreeView::expanded, this, &NavDockWidget::onExpanded);
+    connect(treeView, &TreeView::treeViewGotFocus, this, &NavDockWidget::refreshTreeView);
 
-    connect(treeView, &QTreeView::clicked, this, &DockWidget::onTreeViewClicked);
+    connect(treeView, &QTreeView::clicked, this, &NavDockWidget::onTreeViewClicked);
 
     // view settings
     treeView->setStyle(QStyleFactory::create("Fusion"));
@@ -73,15 +76,15 @@ void DockWidget::treeViewInit()
 }
 
 
-void DockWidget::onTreeViewClicked(const QModelIndex &index)
+void NavDockWidget::onTreeViewClicked(const QModelIndex &index)
 {
     QFileInfo info = proxyModel->fileInfo(index);
     if (info.isDir()) {
-        emit dockWidgetClicked(info.absoluteFilePath());
+        emit navDockClicked(info.absoluteFilePath());
     }
 }
 
-void DockWidget::onExpanded(const QModelIndex &index)
+void NavDockWidget::onExpanded(const QModelIndex &index)
 {
     QString path = proxyModel->fileInfo(index).absoluteFilePath();
 //    qDebug() << QString("dock onExpanded %1").arg(path);
@@ -89,7 +92,7 @@ void DockWidget::onExpanded(const QModelIndex &index)
     ((FileSystemModel *)proxyModel->srcModel())->refreshDir(path);
 }
 
-void DockWidget::refreshTreeView()
+void NavDockWidget::refreshTreeView()
 {
     // reset root path, make the model fetch files or directories
     QString root = fileModel->rootPath();
@@ -110,3 +113,43 @@ void DockWidget::refreshTreeView()
 
     fileModel->setRootPath(root);
 }
+
+void NavDockWidget::loadDockInfo()
+{
+//    qDebug() << QString("loadDockInfo");
+
+    QStringList dirList = readArraySettings(CONFIG_GROUP_NAVDOCK);
+//    qDebug() << dirList;
+    foreach (QString dir, dirList) {
+        treeView->expand(proxyModel->proxyIndex(dir));
+    }
+
+    QVariant hidden = readSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE);
+    if (hidden.isValid()) {
+        setHidden(hidden.toBool());
+    }
+}
+
+void NavDockWidget::saveDockInfo()
+{
+//    qDebug() << QString("saveDockInfo");
+
+    QStringList dirList;
+    QModelIndex index = proxyModel->index(0, 0);
+    while (index.isValid()) {
+        if (treeView->isExpanded(index)) {
+            QFileInfo info = proxyModel->fileInfo(index);
+            if (info.fileName() != "." && info.fileName() != "..") {
+                dirList.append(info.absoluteFilePath());
+            }
+        }
+        index = treeView->indexBelow(index);
+    }
+
+//    qDebug() << dirList;
+
+    writeArraySettings(CONFIG_GROUP_NAVDOCK, dirList);
+
+    writeSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE, isHidden());
+}
+

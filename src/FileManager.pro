@@ -11,22 +11,26 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 DEFINES += QT_NO_DEBUG_OUTPUT   # disable qDebug() output
 
 SOURCES += \
-    dockwidget.cpp \
+    filedockwidget.cpp \
     filefilterproxymodel.cpp \
     filesystemmodel.cpp \
     filewidget.cpp \
     main.cpp \
     mainwindow.cpp \
+    navdockwidget.cpp \
     progressdialog.cpp \
+    settings.cpp \
     treeview.cpp
 
 HEADERS += \
-    dockwidget.h \
+    filedockwidget.h \
     filefilterproxymodel.h \
     filesystemmodel.h \
     filewidget.h \
     mainwindow.h \
+    navdockwidget.h \
     progressdialog.h \
+    settings.h \
     treeview.h
 
 TRANSLATIONS += \

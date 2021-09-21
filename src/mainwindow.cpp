@@ -1,10 +1,10 @@
 #include "mainwindow.h"
 #include "filewidget.h"
+#include "settings.h"
 
 #include <QtDebug>
 #include <QApplication>
 #include <QTranslator>
-#include <QSettings>
 #include <QProcess>
 #include <QAction>
 #include <QScreen>
@@ -24,14 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     setWindowTitle(tr("FileManagerDemo"));
 
-    // resize window
-    QSize aSize = qGuiApp->primaryScreen()->availableSize();
-    qDebug() << aSize;
-    resize(aSize * 0.618);
-
     fileModel = new FileSystemModel();
-    fileDock = new QDockWidget();
-    dirDock = new DockWidget(fileModel);
+    fileDock = new FileDockWidget(fileModel);
+    navDock = new NavDockWidget(fileModel);
 
     cutShortcut = new QShortcut(this);
     copyShortcut = new QShortcut(this);
@@ -47,14 +42,18 @@ MainWindow::MainWindow(QWidget *parent)
     setupShortCut();
 
     // connect slots
-    connect(refreshShortcut, &QShortcut::activated, dirDock, &DockWidget::refreshTreeView);
+    connect(refreshShortcut, &QShortcut::activated, navDock, &NavDockWidget::refreshTreeView);
 
 //    FileWidget *widget = (FileWidget *)((QSplitter *)centralWidget())->widget(0);
     FileWidget *widget = (FileWidget *)centralWidget();
-    connect(dirDock, &DockWidget::dockWidgetClicked, widget, &FileWidget::onNavigateBarClicked);
+    connect(navDock, &NavDockWidget::navDockClicked, widget, &FileWidget::onNavigateBarClicked);
     connectShortcut(widget);
     widget = (FileWidget *)fileDock->widget();
     connectShortcut(widget);
+
+    connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::saveWindowInfo);
+
+    loadWindowInfo();
 }
 
 MainWindow::~MainWindow()
@@ -67,7 +66,7 @@ MainWindow::~MainWindow()
     expCollOneShortcut->deleteLater();
     expCollAllShortcut->deleteLater();
 
-    dirDock->deleteLater();
+    navDock->deleteLater();
     fileDock->deleteLater();
     fileModel->deleteLater();
 }
@@ -92,39 +91,33 @@ void MainWindow::fileModelInit()
 void MainWindow::setupWidgets()
 {
     // central widget
-    FileWidget *widget = new FileWidget(fileModel, this);
+    FileWidget *widget = new FileWidget(CONFIG_GROUP_MAINWIN, fileModel, this);
 //    QSplitter *splitter = new QSplitter;
 //    splitter->addWidget(widget);
     setCentralWidget(widget);
 
     // dock
-    dirDock->setWindowTitle(tr("Navigation Bar"));  // show in the dock
-    addDockWidget(Qt::LeftDockWidgetArea, dirDock);
+    navDock->setWindowTitle(tr("Navigation Bar"));  // show in the dock
+    addDockWidget(Qt::LeftDockWidgetArea, navDock);
 
     // file dock
-    FileWidget *fileWidget = new FileWidget(fileModel, this);
     fileDock->setWindowTitle(tr("File Dock"));
-    fileDock->setWidget(fileWidget);
     addDockWidget(Qt::RightDockWidgetArea, fileDock);
-    fileDock->close();      // default close, close() invalid before addDockWidget()
-
-    connect(fileDock, &QDockWidget::visibilityChanged, fileWidget, &FileWidget::onVisibilityChanged);
-
 }
 
 void MainWindow::setupMenus()
 {
     // file menu
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-    QAction *exitAction = fileMenu->addAction(tr("E&xit"), qApp, &QCoreApplication::quit);
+    QAction *exitAction = fileMenu->addAction(tr("E&xit"), qApp, &QCoreApplication::quit, Qt::QueuedConnection);
     exitAction->setShortcuts(QKeySequence::Quit);
     exitAction->setShortcut(Qt::CTRL | Qt::Key_Q);
 
     // view menu
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
-    dirDock->toggleViewAction()->setText(tr("Navi&gation Bar"));
-    dirDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_G);
-    viewMenu->addAction(dirDock->toggleViewAction());
+    navDock->toggleViewAction()->setText(tr("Navi&gation Bar"));
+    navDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_G);
+    viewMenu->addAction(navDock->toggleViewAction());
 
     fileDock->toggleViewAction()->setText(tr("&File Dock"));
     fileDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_I);
@@ -139,10 +132,10 @@ void MainWindow::setupMenus()
     QMenu *optionsMenu = menuBar()->addMenu(tr("&Options"));
 
     QMenu *languageMenu = optionsMenu->addMenu(tr("&Language"));
-    QAction *zhCNAct = new QAction(QString("简体中文"), this);
+    QAction *zhCNAct = new QAction(LANGUAGE_NAME_CHINESE, this);
     zhCNAct->setCheckable(true);
     connect(zhCNAct, &QAction::triggered, this, &MainWindow::languageZHCN);
-    QAction *enUSAct = new QAction(QString("English"), this);
+    QAction *enUSAct = new QAction(LANGUAGE_NAME_ENGLISH, this);
     enUSAct->setCheckable(true);
     connect(enUSAct, &QAction::triggered, this, &MainWindow::languageENUS);
 
@@ -204,11 +197,7 @@ void MainWindow::connectShortcut(QWidget *widget)
 
 void MainWindow::loadTranslation()
 {
-    QString configFilePath = QCoreApplication::applicationDirPath() + CONFIG_FILE;
-    QSettings settings(configFilePath, QSettings::IniFormat);
-
-    // default "General" section
-    QString language = settings.value("language", QVariant(LANGUAGE_CHINESE)).toString();
+    QString language = readSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_LANGUAGE).toString();
     qDebug() << QString("load language %1").arg(language);
     if (language.compare(LANGUAGE_CHINESE) == 0) {
         // do nothing
@@ -218,7 +207,7 @@ void MainWindow::loadTranslation()
     } else {
 //        QString locale = QLocale::system().name();    // locale zh_CN
         language = QString(LANGUAGE_CHINESE);
-        settings.setValue("language", QVariant(language));
+        writeSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_LANGUAGE, QVariant(language));
     }
 
     appLanguage = language;
@@ -237,9 +226,7 @@ void MainWindow::languageChanged(const QString &lang)
         return;
 
     // update config file
-    QString configFilePath = QCoreApplication::applicationDirPath() + CONFIG_FILE;
-    QSettings settings(configFilePath, QSettings::IniFormat);
-    settings.setValue("language", QVariant(lang));
+    writeSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_LANGUAGE, QVariant(lang));
 
     // prompt the user to restart
     QMessageBox msgBox;
@@ -277,12 +264,13 @@ void MainWindow::about()
     static const char message[] =
         "<p><b>FileManagerDemo</b></p>"
 
-        "<p>This is a demo of the file manager.</p>"
+        "<p>Version:&nbsp;Beta(x64)</p>"
+        "<p>Author:&nbsp;&nbsp;Javier Zhou</p>"
+        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/09/21</p>"
+
+        "<p></p>"
         "<p>Project:&nbsp;&nbsp;<a href=\"https://github.com/Jawez/FileManager\">Github repository</a>"
         "<p>Video:&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"https://www.bilibili.com/video/BV1ng411L7gx\">BiliBili video</a>"
-        "<p></p>"
-        "<p>Author:&nbsp;&nbsp;Javier Zhou</p>"
-        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/08/29</p>"
         ;
 
 //    QMessageBox::about(this, tr("About"), message);
@@ -301,3 +289,39 @@ void MainWindow::aboutQt()
 {
     qApp->aboutQt();
 }
+
+void MainWindow::loadWindowInfo()
+{
+    qDebug() << QString("loadWindowInfo");
+
+    QVariant size = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE);
+    qDebug() << size;
+    if (size.isValid()) {
+        resize(size.toSize());
+    } else {
+        // resize window
+        QSize aSize = qGuiApp->primaryScreen()->availableSize();
+        qDebug() << aSize;
+        resize(aSize * 0.618);
+    }
+
+    QVariant pos = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS);
+    qDebug() << pos;
+    if (pos.isValid()) {
+        move(pos.toPoint());
+    }
+}
+
+void MainWindow::saveWindowInfo()
+{
+    qDebug() << QString("saveWindowInfo") << size() << pos();
+
+    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE, size());
+    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS, pos());
+
+    ((FileWidget *)centralWidget())->saveFileWidgetInfo();
+
+    navDock->saveDockInfo();
+    fileDock->saveDockInfo();
+}
+
