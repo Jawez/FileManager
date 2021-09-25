@@ -8,9 +8,12 @@
 #include <QProcess>
 #include <QAction>
 #include <QScreen>
+#include <QFileIconProvider>
+#include <QFileDialog>
 #include <QDockWidget>
 #include <QMessageBox>
 #include <QSplitter>
+#include <QToolBar>
 #include <QMenuBar>
 #include <QWidget>
 #include <QMenu>
@@ -27,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
     fileModel = new FileSystemModel();
     fileDock = new FileDockWidget(fileModel);
     navDock = new NavDockWidget(fileModel);
+    findDock = new QDockWidget();
 
     cutShortcut = new QShortcut(this);
     copyShortcut = new QShortcut(this);
@@ -38,18 +42,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     fileModelInit();
     setupWidgets();
-    setupMenus();
+    setupToolBar();
+    setupMenuBar();
     setupShortCut();
-
-    // connect slots
-    connect(refreshShortcut, &QShortcut::activated, navDock, &NavDockWidget::refreshTreeView);
-
-//    FileWidget *widget = (FileWidget *)((QSplitter *)centralWidget())->widget(0);
-    FileWidget *widget = (FileWidget *)centralWidget();
-    connect(navDock, &NavDockWidget::navDockClicked, widget, &FileWidget::onNavigateBarClicked);
-    connectShortcut(widget);
-    widget = (FileWidget *)fileDock->widget();
-    connectShortcut(widget);
 
     connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::saveWindowInfo);
 
@@ -92,20 +87,65 @@ void MainWindow::setupWidgets()
 {
     // central widget
     FileWidget *widget = new FileWidget(CONFIG_GROUP_MAINWIN, fileModel, this);
+    connectShortcut(widget);
 //    QSplitter *splitter = new QSplitter;
 //    splitter->addWidget(widget);
     setCentralWidget(widget);
+    connect(widget, &FileWidget::findFiles, this, &MainWindow::onFindFiles);
 
     // dock
+    setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
+
+    // navigation dock
+    navDock->setObjectName(OBJECTNAME_NAV_DOCK);
     navDock->setWindowTitle(tr("Navigation Bar"));  // show in the dock
     addDockWidget(Qt::LeftDockWidgetArea, navDock);
+    connect(navDock, &NavDockWidget::navDockClicked, widget, &FileWidget::onNavigateBarClicked);
+    connect(refreshShortcut, &QShortcut::activated, navDock, &NavDockWidget::refreshTreeView);
 
     // file dock
+    fileDock->setObjectName(OBJECTNAME_FILE_DOCK);
     fileDock->setWindowTitle(tr("File Dock"));
     addDockWidget(Qt::RightDockWidgetArea, fileDock);
+    connectShortcut((FileWidget *)fileDock->widget());
+    connect((FileWidget *)fileDock->widget(), &FileWidget::findFiles, this, &MainWindow::onFindFiles);
+
+    // find dock
+    FindWidget *findWidget = new FindWidget(nullptr, QDir::currentPath(), "*");
+    connect(findWidget, &FindWidget::cellActivated, widget, &FileWidget::onItemActivated);
+    findDock->setObjectName(OBJECTNAME_FIND_DOCK);
+    findDock->setWindowTitle(tr("Find Dock"));
+    findDock->setWidget(findWidget);
+//    addDockWidget(Qt::AllDockWidgetAreas, findDock);
+    addDockWidget(Qt::RightDockWidgetArea, findDock);
+//    addDockWidget(Qt::BottomDockWidgetArea, findDock);
 }
 
-void MainWindow::setupMenus()
+void MainWindow::setupToolBar()
+{
+    toolBar = addToolBar(tr("Quick Button"));
+    toolBar->setObjectName(OBJECTNAME_TOOLBAR);
+//    toolBar->setIconSize(QSize(20, 30));
+//    toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    toolBar->setIconSize(QSize(15, 20));
+    toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+
+    qDebug() << QString("toolBar default menu %1").arg(toolBar->contextMenuPolicy());   // "toolBar default menu 1" Qt::DefaultContextMenu
+    toolBar->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(toolBar, &QToolBar::customContextMenuRequested, this, &MainWindow::toolBarOnTextMenu);
+
+
+//    foreach (QFileInfo info, QDir::drives()) {
+//        QString path = info.absolutePath();     // example "C:/", file's path absolute path. This doesn't include the file name
+//        path = QDir::toNativeSeparators(path);  // example "C:\\"
+//        toolBar->addAction(fileModel->iconProvider()->icon(info), path);
+//    }
+//    toolBar->addAction("+");
+
+    connect(toolBar, &QToolBar::actionTriggered, this, &MainWindow::onToolBarActionTriggered);
+}
+
+void MainWindow::setupMenuBar()
 {
     // file menu
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
@@ -119,9 +159,21 @@ void MainWindow::setupMenus()
     navDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_G);
     viewMenu->addAction(navDock->toggleViewAction());
 
-    fileDock->toggleViewAction()->setText(tr("&File Dock"));
+    fileDock->toggleViewAction()->setText(tr("F&ile Dock"));
     fileDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_I);
     viewMenu->addAction(fileDock->toggleViewAction());
+
+    findDock->toggleViewAction()->setText(tr("&Find Dock"));
+    findDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_F);
+    viewMenu->addAction(findDock->toggleViewAction());
+
+    viewMenu->addSeparator();
+
+    toolBar->toggleViewAction()->setText(tr("Quick &Button"));
+    toolBar->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_B);
+    viewMenu->addAction(toolBar->toggleViewAction());
+
+    viewMenu->addSeparator();
 
 //    FileWidget *widget = (FileWidget *)((QSplitter *)centralWidget())->widget(0);
     FileWidget *widget = (FileWidget *)centralWidget();
@@ -258,15 +310,143 @@ void MainWindow::languageENUS()
 }
 
 
+void MainWindow::toolBarAddAction(bool addDir)
+{
+    if (toolBarList.count() >= MAX_TOOLBAR_COUNT) {
+        return;
+    }
+
+    QString path;
+    QString dialogName = tr("Add Button");
+    if (addDir)
+        path = QFileDialog::getExistingDirectory(this, dialogName);
+    else
+        path = QFileDialog::getOpenFileName(this, dialogName);
+    path = QDir::toNativeSeparators(path);
+
+    if (QFileInfo::exists(path) && !toolBarList.contains(path, Qt::CaseInsensitive)) {
+        qDebug() << "add quick path: " << path;
+
+        QFileInfo info(path);
+        QString text = QDir::toNativeSeparators(info.fileName().isEmpty()?path:info.fileName());
+        QAction *newAct = new QAction;
+        newAct->setIcon(fileModel->iconProvider()->icon(info));
+        newAct->setText(text);
+        newAct->setToolTip(path);
+
+        // get the "+" action
+        QAction *action = toolBar->actions().at(toolBarList.count());
+        toolBar->insertAction(action, newAct);
+
+        toolBarList.append(path);
+        if (toolBarList.count() >= MAX_TOOLBAR_COUNT) {
+            action->setEnabled(false);
+        }
+    } else {
+        qDebug() << "quick path exist: " << path;
+    }
+}
+
+void MainWindow::onToolBarActionTriggered(QAction *action)
+{
+    QString path = action->toolTip();
+    if (QFileInfo::exists(path)) {
+        qDebug() << QString("tool bar clicked %1").arg(path);
+//        ((FileWidget *)centralWidget())->onNavigateBarClicked(path);
+        ((FileWidget *)centralWidget())->onItemActivated(path);
+    } else {
+        toolBarAddAction();
+    }
+}
+
+void MainWindow::toolBarOnTextMenu(const QPoint &pos)
+{
+    QMenu menu;
+    QAction *action;
+
+    // menu actions
+    QAction *addDirAction = nullptr;
+    QAction *addFileAction = nullptr;
+//    QAction *deleteAction = nullptr;
+    QAction *deleteAllAction = nullptr;
+
+    addDirAction = menu.addAction(tr("&Add Directory"));
+    if (toolBarList.count() >= MAX_TOOLBAR_COUNT) {
+        addDirAction->setEnabled(false);
+    }
+    addFileAction = menu.addAction(tr("Add &File"));
+    if (toolBarList.count() >= MAX_TOOLBAR_COUNT) {
+        addFileAction->setEnabled(false);
+    }
+
+    menu.addSeparator();
+
+    QMenu *deleteMenu = menu.addMenu(tr("&Delete"));
+    deleteAllAction = menu.addAction(tr("D&elete All"));
+    if (toolBarList.isEmpty()) {
+        deleteMenu->setEnabled(false);
+        deleteAllAction->setEnabled(false);
+    } else {
+        for (int i = 0; i < toolBarList.count(); i++) {
+            QString path = toolBarList.at(i);
+            QAction *deleteAction = deleteMenu->addAction(path);
+            deleteAction->setData(i);
+        }
+    }
+
+
+    qDebug() << "toolBarOnTextMenu";
+
+    action = menu.exec(toolBar->mapToGlobal(pos));
+    if (!action)
+        return;
+
+    // handle all selected items
+    if (action == addDirAction) {
+        toolBarAddAction();
+
+    } else if (action == addFileAction) {
+        toolBarAddAction(false);
+
+    } else if (action == deleteAllAction) {
+        toolBar->clear();
+        toolBar->addAction("+");
+        toolBarList.clear();
+//        if (toolBarList.count() < MAX_TOOLBAR_COUNT) {
+            QAction *action = toolBar->actions().at(toolBarList.count());
+            action->setEnabled(true);
+//        }
+
+    } else if (action != NULL) {
+        int index = action->data().toInt();
+        qDebug() << QString("delete [%1]: %2").arg(index).arg(action->text());
+
+        toolBar->removeAction(toolBar->actions().at(index));
+        toolBarList.removeAt(index);
+        if (toolBarList.count() < MAX_TOOLBAR_COUNT) {
+            QAction *action = toolBar->actions().at(toolBarList.count());
+            action->setEnabled(true);
+        }
+    }
+}
+
+void MainWindow::onFindFiles(const QString &path, const QString &find)
+{
+    ((FindWidget *)findDock->widget())->setFindInfo(path, find);
+    findDock->setVisible(true);
+    findDock->raise();
+    ((FindWidget *)findDock->widget())->animateFindClick();
+}
+
 // show about message
 void MainWindow::about()
 {
     static const char message[] =
         "<p><b>FileManagerDemo</b></p>"
 
-        "<p>Version:&nbsp;Beta(x64)</p>"
+        "<p>Version:&nbsp;Beta2(x64)</p>"
         "<p>Author:&nbsp;&nbsp;Javier Zhou</p>"
-        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/09/21</p>"
+        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/10/07</p>"
 
         "<p></p>"
         "<p>Project:&nbsp;&nbsp;<a href=\"https://github.com/Jawez/FileManager\">Github repository</a>"
@@ -285,43 +465,102 @@ void MainWindow::about()
     msgBox->exec();
 }
 
-void MainWindow::aboutQt()
-{
-    qApp->aboutQt();
-}
-
 void MainWindow::loadWindowInfo()
 {
     qDebug() << QString("loadWindowInfo");
 
-    QVariant size = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE);
-    qDebug() << size;
-    if (size.isValid()) {
-        resize(size.toSize());
+    QVariant geometry = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_GEOMETRY);
+//    qDebug() << geometry;
+    if (geometry.isValid()) {
+        bool result = restoreGeometry(geometry.toByteArray());
+        qDebug() << QString("restoreGeometry result %1").arg(result);
     } else {
         // resize window
         QSize aSize = qGuiApp->primaryScreen()->availableSize();
         qDebug() << aSize;
         resize(aSize * 0.618);
     }
-
-    QVariant pos = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS);
-    qDebug() << pos;
-    if (pos.isValid()) {
-        move(pos.toPoint());
+    QVariant state = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_STATE);
+//    qDebug() << state;
+    if (state.isValid()) {
+        bool result = restoreState(state.toByteArray());
+        qDebug() << QString("restoreState result %1").arg(result);
+    } else {
+        fileDock->setHidden(true);
+        findDock->setHidden(true);
     }
+
+//    QVariant size = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE);
+//    qDebug() << size;
+//    if (size.isValid()) {
+//        resize(size.toSize());
+//    } else {
+//        // resize window
+//        QSize aSize = qGuiApp->primaryScreen()->availableSize();
+//        qDebug() << aSize;
+//        resize(aSize * 0.618);
+//    }
+
+//    QVariant pos = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS);
+//    qDebug() << pos;
+//    if (pos.isValid()) {
+//        move(pos.toPoint());
+//    }
+
+    QStringList pathList = readArraySettings(CONFIG_GROUP_TOOLBAR);
+    qDebug() << "pathList: " << pathList;
+    if (pathList.isEmpty()) {
+        foreach (QFileInfo info, QDir::drives()) {
+            QString path = info.absolutePath();     // example "C:/", file's path absolute path. This doesn't include the file name
+            path = QDir::toNativeSeparators(path);  // example "C:\\"
+            toolBar->addAction(fileModel->iconProvider()->icon(info), path);
+
+            toolBarList.append(path);
+        }
+    } else {
+        foreach (QString path, pathList) {
+            path = QDir::toNativeSeparators(path);
+//            toolBar->addAction(fileModel->iconProvider()->icon(QFileInfo(path)), path);
+
+            QFileInfo info(path);
+            QString text = QDir::toNativeSeparators(info.fileName().isEmpty()?path:info.fileName());
+            QAction *newAct = new QAction;
+            newAct->setIcon(fileModel->iconProvider()->icon(info));
+            newAct->setText(text);
+            newAct->setToolTip(path);
+            toolBar->addAction(newAct);
+
+            toolBarList.append(path);
+        }
+    }
+//    toolBar->addSeparator();
+    toolBar->addAction("+");
 }
 
 void MainWindow::saveWindowInfo()
 {
     qDebug() << QString("saveWindowInfo") << size() << pos();
 
-    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE, size());
-    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS, pos());
+    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_GEOMETRY, saveGeometry());
+    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_STATE, saveState());
+//    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE, size());
+//    writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_POS, pos());
+
+//    QStringList toolBarList;
+//    foreach (QAction *act, toolBar->actions()) {
+//        QFileInfo info(act->toolTip());
+////        if (info.fileName() != "." && info.fileName() != "..") {
+//        if (QFileInfo::exists(act->toolTip())) {
+//            toolBarList.append(info.absoluteFilePath());
+//        }
+//    }
+//    qDebug() << "toolBarList: " << toolBarList;
+    writeArraySettings(CONFIG_GROUP_TOOLBAR, toolBarList);
 
     ((FileWidget *)centralWidget())->saveFileWidgetInfo();
 
     navDock->saveDockInfo();
     fileDock->saveDockInfo();
+    ((FindWidget *)findDock->widget())->saveFindWidgetInfo();
 }
 

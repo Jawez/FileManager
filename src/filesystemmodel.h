@@ -2,6 +2,7 @@
 #define FILESYSTEMMODEL_H
 
 #include <QFileSystemModel>
+#include <QClipboard>
 
 #define USE_CUSTOM_DROP         1
 #define DISABLE_FILE_WATCHER    1
@@ -49,6 +50,9 @@ private:
 
     QMimeData *modelMimeData;
     Qt::DropAction modelMimeAct;
+
+private slots:
+    void onClipboardChanged(QClipboard::Mode mode);
 
 signals:
     void dropCompleted(const QString &dir, const QString &target);

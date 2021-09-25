@@ -51,6 +51,9 @@ public:
     void loadFileWidgetInfo();
     void saveFileWidgetInfo();
 
+signals:
+    void findFiles(const QString &path, const QString &find);
+
 public slots:    // for shortcut
     void cutSelectedItem();
     void copySelectedItem();
@@ -62,6 +65,7 @@ public slots:    // for shortcut
 
     void onVisibilityChanged(bool visible);
     void onNavigateBarClicked(const QString &path);
+    void onItemActivated(const QString &path);
 
 
 private:
@@ -94,6 +98,8 @@ private:
     typedef struct{
         QString path;
         historyPath *his;
+        Qt::SortOrder order;
+        int sortIndicator;
     }tabInfo;
     QList<tabInfo *> tabList;
 
@@ -127,7 +133,7 @@ private:
     void updateSelectionInfo();
     void updateCurrentPath(const QString &dir);
     void updateCurrentTab(int index);
-    void updateTreeView(const QString &dir, bool sort = true);
+    void updateTreeView(const QString &dir, bool sort = true, bool defaultOrder = false);
     void refreshExpandedFolder(const QString &dir);
     void refreshModelData(const QString &dir);
     void refreshTreeViewNotSort();

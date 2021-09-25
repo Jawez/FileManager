@@ -12,7 +12,7 @@ FileDockWidget::FileDockWidget(QAbstractItemModel *model)
 
     setWidget(fileWidget);
 
-    loadDockInfo();
+//    loadDockInfo();       // use saveState() and restoreState() instead
 }
 
 void FileDockWidget::loadDockInfo()
@@ -32,5 +32,5 @@ void FileDockWidget::saveDockInfo()
 //    qDebug() << QString("saveDockInfo");
 
     ((FileWidget *)this->widget())->saveFileWidgetInfo();
-    writeSettings(CONFIG_GROUP_FILEDOCK, CONFIG_DOCK_HIDE, isHidden());
+//    writeSettings(CONFIG_GROUP_FILEDOCK, CONFIG_DOCK_HIDE, isHidden());
 }

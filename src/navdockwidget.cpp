@@ -124,10 +124,10 @@ void NavDockWidget::loadDockInfo()
         treeView->expand(proxyModel->proxyIndex(dir));
     }
 
-    QVariant hidden = readSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE);
-    if (hidden.isValid()) {
-        setHidden(hidden.toBool());
-    }
+//    QVariant hidden = readSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE);
+//    if (hidden.isValid()) {
+//        setHidden(hidden.toBool());
+//    }
 }
 
 void NavDockWidget::saveDockInfo()
@@ -150,6 +150,6 @@ void NavDockWidget::saveDockInfo()
 
     writeArraySettings(CONFIG_GROUP_NAVDOCK, dirList);
 
-    writeSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE, isHidden());
+//    writeSettings(CONFIG_GROUP_NAVDOCK, CONFIG_DOCK_HIDE, isHidden());
 }
 

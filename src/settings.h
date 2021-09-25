@@ -20,16 +20,26 @@
 #define CONFIG_GROUP_WINDOW     "Window"
 #define CONFIG_WIN_SIZE         "size"
 #define CONFIG_WIN_POS          "pos"
+#define CONFIG_WIN_GEOMETRY     "Geometry"
+#define CONFIG_WIN_STATE        "WindowState"
+
+#define CONFIG_GROUP_TOOLBAR    "ToolBar"
 
 #define CONFIG_GROUP_NAVDOCK    "NavDock"
 #define CONFIG_GROUP_FILEDOCK   "FileDock"
 #define CONFIG_DOCK_HIDE        "hide"
 
-#define CONFIG_GROUP_MAINWIN    "MainWindow"
+#define CONFIG_GROUP_MAINWIN    "MainWidget"
 
 #define CONFIG_TAB_COUNT        "count"
 #define CONFIG_TAB_INDEX        "index"
-#define CONFIG_ARR_ITEM         "path"
+
+#define CONFIG_GROUP_FIND       "FindWidget"
+
+#define CONFIG_ARR_ITEM         "item"
+
+
+#define ITEM_DEFAULT_HEIGHT     (30)
 
 
 QVariant readSettings(const QString &group, const QString &key);

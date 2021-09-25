@@ -15,6 +15,7 @@ SOURCES += \
     filefilterproxymodel.cpp \
     filesystemmodel.cpp \
     filewidget.cpp \
+    findwidget.cpp \
     main.cpp \
     mainwindow.cpp \
     navdockwidget.cpp \
@@ -27,6 +28,7 @@ HEADERS += \
     filefilterproxymodel.h \
     filesystemmodel.h \
     filewidget.h \
+    findwidget.h \
     mainwindow.h \
     navdockwidget.h \
     progressdialog.h \

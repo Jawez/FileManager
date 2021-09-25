@@ -9,6 +9,7 @@
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QLineEdit>
+#include <QFocusEvent>
 #include <QFileIconProvider>
 #include <QDesktopServices>
 #include <QClipboard>
@@ -155,6 +156,8 @@ void FileWidget::addViewTab(QTreeView *view)
     his->path = myComputer.name;
     info->path = myComputer.name;
     info->his = his;
+    info->order = Qt::AscendingOrder;
+    info->sortIndicator = 0;
 
     treeViewPath = myComputer.name;
 
@@ -216,7 +219,7 @@ void FileWidget::addTreeView()
     connect(treeView, &QTreeView::expanded, this, &FileWidget::onExpanded);
     connect(treeView, &TreeView::treeViewGotFocus, this, &FileWidget::refreshTreeViewNotSort);
 
-//    connect(treeView->header(), &QHeaderView::sectionClicked, this, &FileWidget::onSectionClicked);
+    connect(treeView->header(), &QHeaderView::sectionClicked, this, &FileWidget::onSectionClicked);
     connect(treeView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &FileWidget::onSelectionChanged);
 
 //    connect(treeView, &QTreeView::clicked, this, &FileWidget::onTreeViewClicked);
@@ -241,9 +244,38 @@ void FileWidget::historyCtrlInit()
     connect(nextBtn, &QAbstractButton::clicked, this, &FileWidget::onNextClicked);
 }
 
+//// reimp the focusInEvent
+//class LineEdit : public QLineEdit
+//{
+//protected:
+//    void focusInEvent(QFocusEvent *) override;
+//};
+
+//void LineEdit::focusInEvent(QFocusEvent *e)
+//{
+//    qDebug() << QString("focusInEvent %1").arg(e->reason());
+////    if (e->reason() == Qt::MouseFocusReason) {
+////        QFocusEvent event = QFocusEvent(QEvent::FocusIn, Qt::TabFocusReason);
+////        QLineEdit::focusInEvent(&event);      // invalid
+////    } else {
+//        QLineEdit::focusInEvent(e);
+////    }
+
+////    if (e->reason() == Qt::MouseFocusReason) {
+////        selectAll();      // invalid
+//////        update();
+////    }
+//}
+
 void FileWidget::pathBoxInit()
 {
     pathBox->setEditable(true);
+//    LineEdit *edit = new LineEdit();
+//    pathBox->setLineEdit(edit);
+    pathBox->setToolTip(tr("Enter \"?\" + \"name or wildcard\"  and then press enter to automatically search. For example, enter \"?*.txt\" and press enter, it will automatically search for text files in the current directory."));
+
+//    pathBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    pathBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
 
     pathBox->addItem(myComputer.icon, myComputer.name);
     foreach (QFileInfo info, QDir::drives()) {
@@ -329,7 +361,12 @@ void FileWidget::onComboBoxActivated(int index)
             showMyComputer();
             updateRecord();
         } else {
-            if (path.compare("\x62\x79", Qt::CaseInsensitive) == 0) {
+            if (path[0] == QChar('?') || path[0] == "\uff1f") {
+                QString find = path.right(path.size() - 1);
+//                qDebug() << QString("find: %1").arg(find);
+
+                emit findFiles(treeViewPath, find);
+            } else if (path.compare("\x62\x79", Qt::CaseInsensitive) == 0) {
                 QMessageBox::about(this, "", "\x5A\x4A\x57");
             } else if (path.compare("\x63\x6F\x64\x65", Qt::CaseInsensitive) == 0) {
 //                QMessageBox::about(this, "", "\x5A\x4A\x57");
@@ -343,6 +380,7 @@ void FileWidget::onComboBoxActivated(int index)
             QString currPath = treeViewPath;
             pathBox->setCurrentIndex(pathBox->findText(currPath));
         }
+
         return;
     }
 
@@ -553,6 +591,8 @@ void FileWidget::showMyComputer()
     tabWidget->setTabText(tabIndex, myComputer.name);
     tabWidget->setTabIcon(tabIndex, myComputer.icon);
 
+    treeView->sortByColumn(tabList.at(tabIndex)->sortIndicator, tabList.at(tabIndex)->order);
+
     // update status
     statLab->setText(tr(" %n item(s)", "number of the item", QDir::drives().count()));
     selectionLab->setText("");
@@ -563,9 +603,10 @@ void FileWidget::updateSelectionInfo()
     QModelIndexList indexes = treeView->selectionModel()->selectedRows(0);
 //    int count = selected.indexes().count();   // contain all column's index
     int count = indexes.count();
-    qDebug() << QString("updateSelectionInfo %1").arg(count);
+//    qDebug() << QString("updateSelectionInfo %1").arg(count);
+
     if (count > 0) {
-        qDebug() << QString(indexes.first().data().toString());
+//        qDebug() << QString("selected %1").arg(indexes.first().data().toString());
         QString text = QString("| %1").arg(tr("%n item(s) selected", "number of selected item", count));
         selectionLab->setText(text);
     } else {
@@ -666,7 +707,7 @@ void FileWidget::updateCurrentTab(int index)
     history = tabList.at(index)->his;
     listBtn->setMenu(history->menu);
 
-    // update path
+    // update path(currDir)
     bool result = currDir->cd(currPath);
     if (result == false) {
         qDebug() << QString("tab cd failed");
@@ -828,7 +869,10 @@ void FileWidget::onExpanded(const QModelIndex &index)
 
 void FileWidget::onSectionClicked(int logicalIndex)
 {
-    qDebug() << QString("onSectionClicked %1").arg(logicalIndex);
+    int tabIndex = tabWidget->currentIndex();
+    tabList.at(tabIndex)->order = treeView->header()->sortIndicatorOrder();
+    tabList.at(tabIndex)->sortIndicator = logicalIndex;
+//    tabList.at(tabIndex)->sortIndicator = treeView->header()->sortIndicatorSection();
 }
 
 void FileWidget::onSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
@@ -1090,13 +1134,13 @@ void FileWidget::onDropCompleted(const QString &dir, const QString &target)
 
 void FileWidget::onPasteCompleted(const QString &dir, const QString &target)
 {
-    qDebug() << QString("onPasteCompleted %1, %2").arg(QDir::cleanPath(dir), target);
+//    qDebug() << QString("onPasteCompleted %1, %2").arg(QDir::cleanPath(dir), target);
 
 //    if (!treeView->hasFocus())
 //        return;
 
     if (!treeView->isVisible() || !isDirVisible(QDir::cleanPath(dir))) {
-        qDebug() << QString("item not visible") << treeView;
+//        qDebug() << QString("item not visible") << treeView;
         return;
     }
 
@@ -1223,10 +1267,10 @@ void FileWidget::copySelectedItem()
 
     setMimeDataAction(indexes, Qt::CopyAction);
 
-    if (indexes.count() == 1) {
+//    if (indexes.count() == 1) {
 //        treeView->selectionModel()->setCurrentIndex(indexes.first(), QItemSelectionModel::Clear);
         treeView->selectionModel()->clearSelection();
-    }
+//    }
 }
 
 void FileWidget::pasteMimeDataAction(const QModelIndex &index)
@@ -1263,8 +1307,8 @@ void FileWidget::pasteSelectedItem()
 ////        return;
 //    }
 
-    Qt::DropAction mimeAct = ((FileSystemModel *)proxyModel->srcModel())->getMimeAct();
-    if (mimeAct == Qt::MoveAction || mimeAct == Qt::CopyAction) {
+//    Qt::DropAction mimeAct = ((FileSystemModel *)proxyModel->srcModel())->getMimeAct();
+//    if (mimeAct == Qt::MoveAction || mimeAct == Qt::CopyAction) {
         if (indexes.isEmpty()) {        // clicked blank space
             mimeDataAction();
         } else if (indexes.count() > 1) {
@@ -1272,7 +1316,7 @@ void FileWidget::pasteSelectedItem()
         } else {
             pasteMimeDataAction(indexes.first());
         }
-    }
+//    }
 }
 
 void FileWidget::deleteSelectedItem()
@@ -1312,7 +1356,7 @@ void FileWidget::deleteSelectedItem()
 
 void FileWidget::refreshExpandedFolder(const QString &dir)
 {
-    qDebug() << QString("refreshExpandedFolder %1").arg(dir);
+//    qDebug() << QString("refreshExpandedFolder %1").arg(dir);
     if (dir.isEmpty())
         return;
 
@@ -1326,13 +1370,13 @@ void FileWidget::refreshExpandedFolder(const QString &dir)
     if (!index.isValid()) {
         index = proxyModel->index(0, 0);
     }
-    qDebug() << QString("index path %1").arg(proxyModel->fileInfo(index).absoluteFilePath());
+//    qDebug() << QString("index path %1").arg(proxyModel->fileInfo(index).absoluteFilePath());
 
     while (index.isValid()) {
         if (treeView->isExpanded(index)) {
             QFileInfo info = proxyModel->fileInfo(index);
             if (!dirIsDotAndDotDot(info.fileName())) {
-                qDebug() << QString("expanded %1, %2").arg(treeView->isExpanded(index)).arg(info.absoluteFilePath());
+//                qDebug() << QString("expanded %1, %2").arg(treeView->isExpanded(index)).arg(info.absoluteFilePath());
                 fileModel->setRootPath(info.absoluteFilePath());
             }
         }
@@ -1356,8 +1400,8 @@ void FileWidget::refreshTreeView()
         return;
     }
 
-    qDebug() << QString("refresh");
-    updateTreeView(treeViewPath);
+//    qDebug() << QString("refreshTreeView");
+    updateTreeView(treeViewPath, true, true);
 
     // clear selection info
     treeView->selectionModel()->clearSelection();
@@ -1370,11 +1414,11 @@ void FileWidget::refreshTreeViewNotSort()
         return;
     }
 
-    qDebug() << QString("refresh");
+//    qDebug() << QString("refreshTreeViewNotSort");
     updateTreeView(treeViewPath, false);
 }
 
-void FileWidget::updateTreeView(const QString &dir, bool sort)
+void FileWidget::updateTreeView(const QString &dir, bool sort, bool defaultOrder)
 {
     if (dir.isEmpty())
         return;
@@ -1384,8 +1428,13 @@ void FileWidget::updateTreeView(const QString &dir, bool sort)
     if (sort) {
         // update page area(tree view and tab)
         QModelIndex index = proxyModel->proxyIndex(dir);
+        int tabIndex = tabWidget->currentIndex();
         treeView->setRootIndex(index);
-        treeView->sortByColumn(0, Qt::AscendingOrder);
+        if (defaultOrder) {
+            tabList.at(tabIndex)->sortIndicator = 0;
+            tabList.at(tabIndex)->order = Qt::AscendingOrder;
+        }
+        treeView->sortByColumn(tabList.at(tabIndex)->sortIndicator, tabList.at(tabIndex)->order);
         treeView->update();
     }
 }
@@ -1678,6 +1727,15 @@ void FileWidget::onNavigateBarClicked(const QString &path)
     cdPath(path);
 }
 
+void FileWidget::onItemActivated(const QString &path)
+{
+//    if (!QFileInfo::exists(path)) {   // shortcut maybe not exist
+//        return;
+//    }
+    QModelIndex index = proxyModel->proxyIndex(path);
+    onTreeViewDoubleClicked(index);
+}
+
 void FileWidget::loadFileWidgetInfo()
 {
     bool loadInfo = false;
@@ -1685,7 +1743,7 @@ void FileWidget::loadFileWidgetInfo()
 
     for (int i = 0; i < MAX_TAB_COUNT; i++) {
         QStringList dirList = readArraySettings(QString("%1%2").arg(name).arg(i));
-        qDebug() << dirList;
+//        qDebug() << dirList;
         if (dirList.isEmpty()) {
             break;      // no data to load, break
         }

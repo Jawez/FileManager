@@ -8,7 +8,15 @@
 #include "filesystemmodel.h"
 #include "navdockwidget.h"
 #include "filedockwidget.h"
+#include "findwidget.h"
 
+
+#define MAX_TOOLBAR_COUNT           10
+
+#define OBJECTNAME_NAV_DOCK         "Navigation Bar"
+#define OBJECTNAME_FILE_DOCK        "File Dock"
+#define OBJECTNAME_FIND_DOCK        "Find Dock"
+#define OBJECTNAME_TOOLBAR          "Quick Button"
 
 class MainWindow : public QMainWindow
 {
@@ -19,9 +27,13 @@ public:
     ~MainWindow();
 
 private:
+    QToolBar* toolBar;
+    QStringList toolBarList;
+
     NavDockWidget *navDock;
     FileDockWidget *fileDock;
     FileSystemModel *fileModel;
+    QDockWidget *findDock;
 
     QString appLanguage;
 
@@ -35,9 +47,12 @@ private:
 
     void fileModelInit();
 
-    void setupMenus();
+    void setupToolBar();
+    void setupMenuBar();
     void setupWidgets();
     void setupShortCut();
+
+    void toolBarAddAction(bool addDir = true);
 
     void connectShortcut(QWidget *widget);
 
@@ -49,10 +64,12 @@ private:
 
 public slots:
     void about();
-    void aboutQt();
 
 private slots:
     void languageZHCN();
     void languageENUS();
+    void onToolBarActionTriggered(QAction *action);
+    void toolBarOnTextMenu(const QPoint &pos);
+    void onFindFiles(const QString &path, const QString &find);
 };
 #endif // MAINWINDOW_H

@@ -1,5 +1,6 @@
 #include "filesystemmodel.h"
 #include "progressdialog.h"
+#include "settings.h"
 
 #include <QtDebug>
 #include <QFuture>
@@ -18,6 +19,8 @@
 
 FileSystemModel::FileSystemModel()
 {
+//    connect(qApp->clipboard(), &QClipboard::changed, this, &FileSystemModel::onClipboardChanged);
+
     // init mime info for cut, copy ...
     modelMimeData = nullptr;
     modelMimeAct = Qt::IgnoreAction;
@@ -33,6 +36,11 @@ QVariant FileSystemModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid() || index.model() != this)
         return QVariant();
+
+    if (role == Qt::SizeHintRole) {
+//        qDebug() << QFileSystemModel::data(index, Qt::SizeHintRole).toSize();   // QSize(-1, -1)
+        return QSize(-1, ITEM_DEFAULT_HEIGHT);
+    }
 
     if (role == Qt::EditRole || role == Qt::DisplayRole) {
         QFileInfo info = fileInfo(index);
@@ -219,7 +227,7 @@ bool FileSystemModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 
 void FileSystemModel::refreshDir(const QString &dir)
 {
-    qDebug() << QString("refreshDir %1").arg(dir);
+//    qDebug() << QString("refreshDir %1").arg(dir);
     if (dir.isEmpty())
         return;
 
@@ -269,7 +277,7 @@ bool FileSystemModel::moveTarget(const QString &srcPath, const QString &to, cons
         }
     }
 
-    qDebug() << QString("move target %1").arg(result);
+    qDebug() << QString("move target result %1").arg(result);
 
     return result;
 }
@@ -317,7 +325,7 @@ bool FileSystemModel::copyTarget(const QString &srcPath, const QString &to, cons
         result = QFile::copy(srcPath, targetPath);
     }
 
-    qDebug() << QString("copy target %1").arg(result);
+    qDebug() << QString("copy target result %1").arg(result);
 
     return result;
 }
@@ -329,7 +337,7 @@ bool FileSystemModel::handleTargetConcurrent(const QString &srcPath, const QStri
 
     ProgressDialog *progress = (ProgressDialog *)dialog;
 
-    qDebug() << QString("handleTargetConcurrent action %1").arg(action);
+//    qDebug() << QString("handleTargetConcurrent action %1").arg(action);
 
     QFuture<bool> future;
     switch (action) {
@@ -352,7 +360,7 @@ bool FileSystemModel::handleTargetConcurrent(const QString &srcPath, const QStri
         }
     }
     result = future.result();
-    qDebug() << QString("future result %1").arg(result);
+//    qDebug() << QString("future result %1").arg(result);
 
     if (progress) {
         if (progress->wasCanceled()) {
@@ -377,7 +385,7 @@ bool FileSystemModel::deleteTarget(const QString &fileName)
         this->refreshDir(path);
 #endif
     }
-    qDebug() << QString("deleteTarget %1, %2").arg(info.exists()).arg(info.absolutePath());
+
     return result;
 }
 
@@ -403,6 +411,8 @@ void FileSystemModel::setMimeData(const QModelIndexList &indexes, Qt::DropAction
 
     modelMimeData = this->mimeData(indexes);
     modelMimeAct = action;
+
+    qApp->clipboard()->setMimeData(this->mimeData(indexes), QClipboard::Clipboard);
 }
 
 Qt::DropAction FileSystemModel::getMimeAct()
@@ -412,10 +422,23 @@ Qt::DropAction FileSystemModel::getMimeAct()
 
 void FileSystemModel::handleMimeData(const QString &to, Qt::DropAction action)
 {
+    const QMimeData *data = qApp->clipboard()->mimeData(QClipboard::Clipboard);
+    if (data == nullptr || data->urls().isEmpty()){   // data always not null
+        qDebug() << "no mimeData";
+        return;
+    }
+    if (modelMimeData == nullptr || data->urls() != modelMimeData->urls()) {
+        qDebug() << "mimeData changed: " << data << modelMimeData;
+        action = Qt::CopyAction;
+    }
+
     if (action == Qt::IgnoreAction)
-        handleMimeDataPrivate(modelMimeData, modelMimeAct, to);
+        action = modelMimeAct;
+
+    if (action == Qt::IgnoreAction)
+        handleMimeDataPrivate(data, Qt::CopyAction, to);
     else
-        handleMimeDataPrivate(modelMimeData, action, to);
+        handleMimeDataPrivate(data, action, to);
 }
 
 // private
@@ -604,6 +627,7 @@ bool FileSystemModel::handleMimeDataPrivate(const QMimeData *data, Qt::DropActio
 
     if (action == Qt::MoveAction && handleResult) {
         this->cleanMimeData();
+        qApp->clipboard()->clear(QClipboard::Clipboard);
     }
 
     if (progress) {
@@ -613,6 +637,17 @@ bool FileSystemModel::handleMimeDataPrivate(const QMimeData *data, Qt::DropActio
     return handleResult;
 }
 
+
+
+void FileSystemModel::onClipboardChanged(QClipboard::Mode mode)
+{
+    qDebug() << QString("onClipboardChanged %1").arg(mode);
+
+//    qDebug() << "data changed: " << qApp->clipboard()->mimeData(QClipboard::Clipboard) << modelMimeData;
+//    qDebug() << qApp->clipboard()->mimeData(QClipboard::Clipboard)->formats();
+//    qDebug() << qApp->clipboard()->mimeData(QClipboard::Clipboard)->text();
+//    qDebug() << qApp->clipboard()->mimeData(QClipboard::Clipboard)->urls();
+}
 
 // return false if cancel clicked
 bool FileSystemModel::showMoveConfirmBox(const QMimeData *data, const QString &to)
