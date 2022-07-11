@@ -46,7 +46,31 @@ MainWindow::MainWindow(QWidget *parent)
     setupMenuBar();
     setupShortCut();
 
-    connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::saveWindowInfo);
+    // system tray
+    trayIcon = nullptr;
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        QVariant useTray = readSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_SYSTRAY);
+        qDebug() << QString("useTray valid %1").arg(useTray.isValid());
+        if (!useTray.isValid()) {
+            useTray = QVariant(true);
+            writeSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_SYSTRAY, useTray);
+        }
+
+        qDebug() << QString("useTray bool %1").arg(useTray.toBool());
+        if (useTray.toBool()) {
+            QApplication::setQuitOnLastWindowClosed(false);
+
+            createActions();
+            createTrayIcon();
+            QIcon icon(QLatin1String(":/resources/icon_app_64.png"));
+            trayIcon->setIcon(icon);
+            trayIcon->setToolTip("FileManager");
+            connect(trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::iconActivated);
+            trayIcon->show();
+        }
+    }
+
+//    connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::saveWindowInfo);
 
     loadWindowInfo();
 }
@@ -79,7 +103,7 @@ void MainWindow::fileModelInit()
      * add QDir::System will show all shortcut(.lnk file) and system files
      * add QDir::Hidden will show some files that not visible on Windows, these files may be modified by mistake.
      */
-    fileModel->setFilter(QDir::AllEntries | QDir::NoDot | QDir::AllDirs | QDir::System/* | QDir::Hidden*/);
+    fileModel->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::AllDirs | QDir::System/* | QDir::Hidden*/);
     fileModel->setReadOnly(false);
 }
 
@@ -245,6 +269,72 @@ void MainWindow::connectShortcut(QWidget *widget)
     connect(refreshShortcut, &QShortcut::activated, (FileWidget *)widget, &FileWidget::refreshTreeView);
     connect(expCollOneShortcut, &QShortcut::activated, (FileWidget *)widget, &FileWidget::expandCollapseOne);
     connect(expCollAllShortcut, &QShortcut::activated, (FileWidget *)widget, &FileWidget::expandCollapseAll);
+}
+
+void MainWindow::createActions()
+{
+    minimizeAction = new QAction(tr("Mi&nimize"), this);
+//    minimizeAction->setShortcut(Qt::CTRL | Qt::Key_H);
+    connect(minimizeAction, &QAction::triggered, this, &QWidget::hide);
+
+    maximizeAction = new QAction(tr("Ma&ximize"), this);
+    connect(maximizeAction, &QAction::triggered, this, &QWidget::showMaximized);
+
+    restoreAction = new QAction(tr("&Restore"), this);
+    connect(restoreAction, &QAction::triggered, this, &QWidget::showNormal);
+
+    quitAction = new QAction(tr("&Quit"), this);
+    connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+}
+
+void MainWindow::createTrayIcon()
+{
+    trayIconMenu = new QMenu(this);
+    trayIconMenu->addAction(minimizeAction);
+    trayIconMenu->addAction(maximizeAction);
+    trayIconMenu->addAction(restoreAction);
+    trayIconMenu->addSeparator();
+    trayIconMenu->addAction(quitAction);
+
+    trayIcon = new QSystemTrayIcon(this);
+    trayIcon->setContextMenu(trayIconMenu);
+}
+
+void MainWindow::setVisible(bool visible)
+{
+    if (trayIcon) {
+        minimizeAction->setEnabled(visible);
+        maximizeAction->setEnabled(!isMaximized());
+        restoreAction->setEnabled(isMaximized() || !visible);
+    }
+    QMainWindow::setVisible(visible);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    saveWindowInfo();
+    if (trayIcon && trayIcon->isVisible()) {
+        hide();
+        event->ignore();
+    }
+}
+
+void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
+{
+    qDebug() << QString("iconActivated reason %1").arg(reason);
+    switch (reason) {
+    case QSystemTrayIcon::Trigger:
+        break;
+    case QSystemTrayIcon::DoubleClick:
+        if (!this->isVisible()) {
+            this->show();
+        }
+        break;
+    case QSystemTrayIcon::MiddleClick:
+        break;
+    default:
+        ;
+    }
 }
 
 void MainWindow::loadTranslation()
@@ -417,7 +507,7 @@ void MainWindow::toolBarOnTextMenu(const QPoint &pos)
             action->setEnabled(true);
 //        }
 
-    } else if (action != NULL) {
+    } else if (action != nullptr) {
         int index = action->data().toInt();
         qDebug() << QString("delete [%1]: %2").arg(index).arg(action->text());
 
@@ -540,6 +630,8 @@ void MainWindow::loadWindowInfo()
 void MainWindow::saveWindowInfo()
 {
     qDebug() << QString("saveWindowInfo") << size() << pos();
+
+    writeSettings(CONFIG_GROUP_DEFAULT, CONFIG_DEF_SYSTRAY, QVariant(trayIcon != nullptr));
 
     writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_GEOMETRY, saveGeometry());
     writeSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_STATE, saveState());

@@ -31,8 +31,8 @@
 
 #define STATUS_LAB_WIDTH_ITEM       100
 
-#define HISTORY_WIDTH_MENUBTN       25
-#define HISTORY_WIDTH_BUTTON        30
+#define MENUBTN_WIDTH_DEFAULT       25
+#define BUTTON_WIDTH_DEFAULT        30
 
 
 class FileWidget : public QWidget
@@ -62,6 +62,7 @@ public slots:    // for shortcut
     void refreshTreeView();
     void expandCollapseOne();
     void expandCollapseAll();
+    void returnParentPath();
 
     void onVisibilityChanged(bool visible);
     void onNavigateBarClicked(const QString &path);
@@ -85,6 +86,8 @@ private:
     QPushButton *prevBtn;
     QPushButton *nextBtn;
     QPushButton *listBtn;
+    QPushButton *parentBtn;
+    QPushButton *refreshBtn;
 
     // navigate box
     QComboBox *pathBox;
@@ -118,7 +121,7 @@ private:
 
     // widget init
     void labelInit();
-    void historyCtrlInit();
+    void btnCtrlInit();
     void pathBoxInit();
     void addViewTab(QTreeView *view);
     void addTreeView();
@@ -138,9 +141,15 @@ private:
     void refreshModelData(const QString &dir);
     void refreshTreeViewNotSort();
 
+    // remove invalid path for current tab
+    void removeInvalidPath(const QString &path);
+
+    // path box
+    void pathBoxRemoveInvalidItem(const QString &path);
+
     // history menu
     void hisPathSwitch(const QString &path);
-    void removeInvalidHisAction(QAction *action);
+    void hisPathRemoveInvalidItem(const QString &path);
 
     // for context menu
     QString dirPathFromIndex(const QModelIndex &index);

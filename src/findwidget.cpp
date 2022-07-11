@@ -152,6 +152,7 @@ QStringList FindWidget::findFiles(const QStringList &files, const QString &text)
         if (file.open(QIODevice::ReadOnly)) {
             QString line;
             QTextStream in(&file);
+            in.setCodec("UTF-8");   // set codec to match Chinese
             while (!in.atEnd()) {
                 if (progressDialog.wasCanceled())
                     break;

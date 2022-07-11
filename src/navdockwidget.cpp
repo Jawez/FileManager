@@ -66,7 +66,7 @@ void NavDockWidget::treeViewInit()
     connect(treeView, &QTreeView::clicked, this, &NavDockWidget::onTreeViewClicked);
 
     // view settings
-    treeView->setStyle(QStyleFactory::create("Fusion"));
+//    treeView->setStyle(QStyleFactory::create("Fusion"));
     treeView->hideColumn(1);    //  treeView->setColumnHidden(1, true);
     treeView->hideColumn(2);
     treeView->hideColumn(3);

@@ -1,8 +1,11 @@
 <RCC>
     <qresource prefix="/">
-        <file>resources/icon_next.png</file>
-        <file>resources/icon_prev.png</file>
         <file>translations/FileManager_zh_CN.qm</file>
         <file>resources/icon_app_64.png</file>
+        <file>resources/arrow-clockwise.svg</file>
+        <file>resources/arrow-left-short.svg</file>
+        <file>resources/arrow-right-short.svg</file>
+        <file>resources/arrow-up-short.svg</file>
+        <file>resources/chevron-down.svg</file>
     </qresource>
 </RCC>

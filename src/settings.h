@@ -16,6 +16,7 @@
 
 #define CONFIG_GROUP_DEFAULT    ""
 #define CONFIG_DEF_LANGUAGE     "language"
+#define CONFIG_DEF_SYSTRAY      "Tray"
 
 #define CONFIG_GROUP_WINDOW     "Window"
 #define CONFIG_WIN_SIZE         "size"

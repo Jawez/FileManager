@@ -37,6 +37,8 @@ FileWidget::FileWidget(const QString &tag, QAbstractItemModel *model, QWidget *p
     prevBtn = new QPushButton;
     nextBtn = new QPushButton;
     listBtn = new QPushButton;
+    parentBtn = new QPushButton;
+    refreshBtn = new QPushButton;
     pathBox = new QComboBox;
 
     proxyModel = new FileFilterProxyModel;
@@ -58,7 +60,7 @@ FileWidget::FileWidget(const QString &tag, QAbstractItemModel *model, QWidget *p
     // widget init
     tabWidgetInit();
     labelInit();
-    historyCtrlInit();
+    btnCtrlInit();
     pathBoxInit();
     widgetLayoutInit();
 
@@ -73,6 +75,8 @@ FileWidget::~FileWidget()
     prevBtn->deleteLater();
     nextBtn->deleteLater();
     listBtn->deleteLater();
+    parentBtn->deleteLater();
+    refreshBtn->deleteLater();
     pathBox->deleteLater();
 
     foreach (tabInfo *tab, tabList) {
@@ -196,7 +200,7 @@ void FileWidget::addTreeView()
     treeView->setDragDropMode(QAbstractItemView::DragDrop);     // move target on FileSystemModel, not copy
 
     // view settings
-    treeView->setStyle(QStyleFactory::create("Fusion"));
+//    treeView->setStyle(QStyleFactory::create("Fusion"));
     treeView->setTextElideMode(Qt::ElideRight);     // default, set text elide mode
 //    treeView->setRootIsDecorated(false);    // do not show expand button
 //    treeView->setIndentation(20);       // indentation
@@ -232,16 +236,24 @@ void FileWidget::labelInit()
     statLab->setMaximumWidth(STATUS_LAB_WIDTH_ITEM);
 }
 
-void FileWidget::historyCtrlInit()
+void FileWidget::btnCtrlInit()
 {
-    listBtn->setFixedWidth(HISTORY_WIDTH_MENUBTN);
+    listBtn->setFixedWidth(MENUBTN_WIDTH_DEFAULT);
 
-    prevBtn->setIcon(QIcon(":/resources/icon_prev.png"));
-    prevBtn->setFixedWidth(HISTORY_WIDTH_BUTTON);
-    nextBtn->setIcon(QIcon(":/resources/icon_next.png"));
-    nextBtn->setFixedWidth(HISTORY_WIDTH_BUTTON);
+    prevBtn->setIcon(QIcon(":/resources/arrow-left-short.svg"));
+    prevBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
+    nextBtn->setIcon(QIcon(":/resources/arrow-right-short.svg"));
+    nextBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
     connect(prevBtn, &QAbstractButton::clicked, this, &FileWidget::onPrevClicked);
     connect(nextBtn, &QAbstractButton::clicked, this, &FileWidget::onNextClicked);
+
+    parentBtn->setIcon(QIcon(":/resources/arrow-up-short.svg"));
+    parentBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
+    connect(parentBtn, &QAbstractButton::clicked, this, &FileWidget::returnParentPath);
+
+    refreshBtn->setIcon(QIcon(":/resources/arrow-clockwise.svg"));
+    refreshBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
+    connect(refreshBtn, &QAbstractButton::clicked, this, &FileWidget::refreshTreeView);
 }
 
 //// reimp the focusInEvent
@@ -301,10 +313,12 @@ void FileWidget::widgetLayoutInit()
     gridLayout->addWidget(prevBtn, 0, 0);
     gridLayout->addWidget(nextBtn, 0, 1);
     gridLayout->addWidget(listBtn, 0, 2);
-    gridLayout->addWidget(pathBox, 0, 3);
+    gridLayout->addWidget(parentBtn, 0, 3);
+    gridLayout->addWidget(refreshBtn, 0, 4);
+    gridLayout->addWidget(pathBox, 0, 5);
 
     // row 1
-    gridLayout->addWidget(tabWidget, 1, 0, 1, 4);
+    gridLayout->addWidget(tabWidget, 1, 0, 1, 6);
 
     // row 2
     QHBoxLayout *hBoxLayout = new QHBoxLayout;
@@ -313,9 +327,22 @@ void FileWidget::widgetLayoutInit()
     hBoxLayout->addWidget(statLab);
     hBoxLayout->addWidget(selectionLab);
     hBoxLayout->setContentsMargins(1, 1, 1, 1);
-    gridLayout->addWidget(statusBar, 2, 0, 1, 4);
+    gridLayout->addWidget(statusBar, 2, 0, 1, 6);
 }
 
+
+static bool dirIsDrive(const QString &dir)
+{
+    foreach (QFileInfo info, QDir::drives()) {
+        QString path = info.absolutePath();     // example "C:/", file's path absolute path. This doesn't include the file name
+        path = QDir::toNativeSeparators(path);  // example "C:\\"
+        if (path.compare(dir, Qt::CaseInsensitive) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 static bool dirIsDotAndDotDot(const QString &dir)
 {
@@ -372,13 +399,12 @@ void FileWidget::onComboBoxActivated(int index)
 //                QMessageBox::about(this, "", "\x5A\x4A\x57");
             } else {
                 displayUnknownPathMessage(path);
+                hisPathRemoveInvalidItem(path);
             }
 
             // remove invalid path
             pathBox->removeItem(index);
-
-            QString currPath = treeViewPath;
-            pathBox->setCurrentIndex(pathBox->findText(currPath));
+            pathBox->setCurrentIndex(pathBox->findText(treeViewPath));
         }
 
         return;
@@ -401,6 +427,22 @@ void FileWidget::onComboBoxIndexChanged(int index)
 
 }
 
+void FileWidget::removeInvalidPath(const QString &path)
+{
+    displayUnknownPathMessage(path);
+
+    pathBoxRemoveInvalidItem(path);
+    hisPathRemoveInvalidItem(path);
+}
+
+void FileWidget::pathBoxRemoveInvalidItem(const QString &path)
+{
+    // remove in pathBox
+    int textIndex = pathBox->findText(path);
+    if (textIndex != -1) {
+        pathBox->removeItem(textIndex);
+    }
+}
 
 void FileWidget::hisPathSwitch(const QString &path)
 {
@@ -408,21 +450,12 @@ void FileWidget::hisPathSwitch(const QString &path)
     updateCurrentPath(path);
 }
 
-void FileWidget::removeInvalidHisAction(QAction *action)
+void FileWidget::hisPathRemoveInvalidItem(const QString &path)
 {
-    QString path = action->text();
-    // remove invalid action
     int count = history->act.count();
     for (int i = 0; i < count; i++) {
-        if (action == history->act.at(i)) {
-            displayUnknownPathMessage(path);
-
-            // remove in pathBox
-            int textIndex = pathBox->findText(path);
-            if (textIndex != -1) {
-                pathBox->removeItem(textIndex);
-            }
-
+        QAction *action = history->act.at(i);
+        if (path.compare(action->text()) == 0) {
 //            qDebug() << QString("history pos %1, i %2").arg(history->pos).arg(i);
 
             // remove in history menu
@@ -451,7 +484,7 @@ void FileWidget::removeInvalidHisAction(QAction *action)
                     }
                 }
             }
-            return;
+            break;
         }
     }
 }
@@ -463,7 +496,7 @@ void FileWidget::onRecordTriggered(QAction *action)
         if (path.compare(myComputer.name, Qt::CaseInsensitive) == 0) {
 //            showMyComputer();
         } else {
-            removeInvalidHisAction(action);
+            removeInvalidPath(path);
             return;
         }
     }
@@ -706,6 +739,18 @@ void FileWidget::updateCurrentTab(int index)
     // update history pointer
     history = tabList.at(index)->his;
     listBtn->setMenu(history->menu);
+
+    if (!QFileInfo::exists(currPath)) {
+        qDebug() << QString("tab path not exists failed");
+        if (currPath.compare(myComputer.name, Qt::CaseInsensitive) == 0) {
+            showMyComputer();
+        } else {
+            showMyComputer();
+            updateRecord();
+            removeInvalidPath(currPath);
+        }
+        return;
+    }
 
     // update path(currDir)
     bool result = currDir->cd(currPath);
@@ -1400,11 +1445,18 @@ void FileWidget::refreshTreeView()
         return;
     }
 
-//    qDebug() << QString("refreshTreeView");
-    updateTreeView(treeViewPath, true, true);
+    QString currPath = treeViewPath;
+    if (QFileInfo::exists(currPath)) {
+//        qDebug() << QString("refreshTreeView");
+        updateTreeView(currPath, true, true);
 
-    // clear selection info
-    treeView->selectionModel()->clearSelection();
+        // clear selection info
+        treeView->selectionModel()->clearSelection();
+    } else if (currPath.compare(myComputer.name, Qt::CaseInsensitive) != 0) {
+        showMyComputer();
+        updateRecord();
+        removeInvalidPath(currPath);    // must later than showMyComputer() here
+    }
 }
 
 void FileWidget::refreshTreeViewNotSort()
@@ -1414,8 +1466,15 @@ void FileWidget::refreshTreeViewNotSort()
         return;
     }
 
-//    qDebug() << QString("refreshTreeViewNotSort");
-    updateTreeView(treeViewPath, false);
+    QString currPath = treeViewPath;
+    if (QFileInfo::exists(currPath)) {
+//        qDebug() << QString("refreshTreeViewNotSort");
+        updateTreeView(currPath, false);
+    } else if (currPath.compare(myComputer.name, Qt::CaseInsensitive) != 0) {
+        showMyComputer();
+        updateRecord();
+        removeInvalidPath(currPath);    // must later than showMyComputer() here
+    }
 }
 
 void FileWidget::updateTreeView(const QString &dir, bool sort, bool defaultOrder)
@@ -1727,6 +1786,19 @@ void FileWidget::onNavigateBarClicked(const QString &path)
     cdPath(path);
 }
 
+void FileWidget::returnParentPath()
+{
+    if (treeViewPath.compare(myComputer.name, Qt::CaseInsensitive) == 0) {
+        qDebug() << "no parent path";
+        return;
+    } else if (dirIsDrive(treeViewPath)) {
+        showMyComputer();
+        updateRecord();
+    } else {
+        cdPath("..");
+    }
+}
+
 void FileWidget::onItemActivated(const QString &path)
 {
 //    if (!QFileInfo::exists(path)) {   // shortcut maybe not exist
@@ -1741,7 +1813,12 @@ void FileWidget::loadFileWidgetInfo()
     bool loadInfo = false;
 //    qDebug() << QString("loadFileWidgetInfo");
 
-    for (int i = 0; i < MAX_TAB_COUNT; i++) {
+    QVariant count = readSettings(name, CONFIG_TAB_COUNT);
+    int tab_count = 0;  // MAX_TAB_COUNT;
+    if (count.isValid() && count.toInt()) {
+        tab_count = count.toInt();
+    }
+    for (int i = 0; i < tab_count; i++) {
         QStringList dirList = readArraySettings(QString("%1%2").arg(name).arg(i));
 //        qDebug() << dirList;
         if (dirList.isEmpty()) {
@@ -1777,7 +1854,8 @@ void FileWidget::saveFileWidgetInfo()
 {
 //    qDebug() << QString("saveFileWidgetInfo") << name;
 
-    // save current tab index
+    // save tab count and current tab index
+    writeSettings(name, CONFIG_TAB_COUNT, tabWidget->count());
     writeSettings(name, CONFIG_TAB_INDEX, tabWidget->currentIndex());
 
     for (int i = 0; i < tabList.count(); i++) {
