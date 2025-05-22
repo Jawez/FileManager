@@ -53,6 +53,7 @@ public:
 
 signals:
     void findFiles(const QString &path, const QString &find);
+    void selectedFile(const QString &fileName);
 
 public slots:    // for shortcut
     void cutSelectedItem();

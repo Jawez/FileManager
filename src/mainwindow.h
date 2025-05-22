@@ -10,6 +10,7 @@
 #include "navdockwidget.h"
 #include "filedockwidget.h"
 #include "findwidget.h"
+#include "previewdockwidget.h"
 
 
 #define MAX_TOOLBAR_COUNT           10
@@ -17,6 +18,7 @@
 #define OBJECTNAME_NAV_DOCK         "Navigation Bar"
 #define OBJECTNAME_FILE_DOCK        "File Dock"
 #define OBJECTNAME_FIND_DOCK        "Find Dock"
+#define OBJECTNAME_PREVIEW_DOCK     "Preview Dock"
 #define OBJECTNAME_TOOLBAR          "Quick Button"
 
 class MainWindow : public QMainWindow
@@ -37,6 +39,7 @@ private:
     FileDockWidget *fileDock;
     FileSystemModel *fileModel;
     QDockWidget *findDock;
+    PreviewDockWidget *previewDock;
 
     QString appLanguage;
 
@@ -90,5 +93,6 @@ private slots:
     void onToolBarActionTriggered(QAction *action);
     void toolBarOnTextMenu(const QPoint &pos);
     void onFindFiles(const QString &path, const QString &find);
+    void onSelectedFile(const QString &fileName);
 };
 #endif // MAINWINDOW_H

@@ -7,5 +7,10 @@
         <file>resources/arrow-right-short.svg</file>
         <file>resources/arrow-up-short.svg</file>
         <file>resources/chevron-down.svg</file>
+        <file>resources/arrow-clockwise.png</file>
+        <file>resources/arrow-left-short.png</file>
+        <file>resources/arrow-right-short.png</file>
+        <file>resources/arrow-up-short.png</file>
+        <file>resources/chevron-down.png</file>
     </qresource>
 </RCC>

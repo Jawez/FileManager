@@ -19,6 +19,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     navdockwidget.cpp \
+    previewdockwidget.cpp \
     progressdialog.cpp \
     settings.cpp \
     treeview.cpp
@@ -31,6 +32,7 @@ HEADERS += \
     findwidget.h \
     mainwindow.h \
     navdockwidget.h \
+    previewdockwidget.h \
     progressdialog.h \
     settings.h \
     treeview.h

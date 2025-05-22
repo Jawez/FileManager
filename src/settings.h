@@ -28,6 +28,7 @@
 
 #define CONFIG_GROUP_NAVDOCK    "NavDock"
 #define CONFIG_GROUP_FILEDOCK   "FileDock"
+#define CONFIG_GROUP_PREVIEWDOCK    "PreviewDock"
 #define CONFIG_DOCK_HIDE        "hide"
 
 #define CONFIG_GROUP_MAINWIN    "MainWidget"

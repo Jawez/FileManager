@@ -226,7 +226,7 @@ void FileWidget::addTreeView()
     connect(treeView->header(), &QHeaderView::sectionClicked, this, &FileWidget::onSectionClicked);
     connect(treeView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &FileWidget::onSelectionChanged);
 
-//    connect(treeView, &QTreeView::clicked, this, &FileWidget::onTreeViewClicked);
+    connect(treeView, &QTreeView::clicked, this, &FileWidget::onTreeViewClicked);
     connect(treeView, &QTreeView::doubleClicked, this, &FileWidget::onTreeViewDoubleClicked);
 }
 
@@ -240,18 +240,18 @@ void FileWidget::btnCtrlInit()
 {
     listBtn->setFixedWidth(MENUBTN_WIDTH_DEFAULT);
 
-    prevBtn->setIcon(QIcon(":/resources/arrow-left-short.svg"));
+    prevBtn->setIcon(QIcon(":/resources/arrow-left-short.png"));
     prevBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
-    nextBtn->setIcon(QIcon(":/resources/arrow-right-short.svg"));
+    nextBtn->setIcon(QIcon(":/resources/arrow-right-short.png"));
     nextBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
     connect(prevBtn, &QAbstractButton::clicked, this, &FileWidget::onPrevClicked);
     connect(nextBtn, &QAbstractButton::clicked, this, &FileWidget::onNextClicked);
 
-    parentBtn->setIcon(QIcon(":/resources/arrow-up-short.svg"));
+    parentBtn->setIcon(QIcon(":/resources/arrow-up-short.png"));
     parentBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
     connect(parentBtn, &QAbstractButton::clicked, this, &FileWidget::returnParentPath);
 
-    refreshBtn->setIcon(QIcon(":/resources/arrow-clockwise.svg"));
+    refreshBtn->setIcon(QIcon(":/resources/arrow-clockwise.png"));
     refreshBtn->setFixedWidth(BUTTON_WIDTH_DEFAULT);
     connect(refreshBtn, &QAbstractButton::clicked, this, &FileWidget::refreshTreeView);
 }
@@ -927,7 +927,21 @@ void FileWidget::onSelectionChanged(const QItemSelection &selected, const QItemS
 
 void FileWidget::onTreeViewClicked(const QModelIndex &index)
 {
+    QString target;
+    QFileInfo info = proxyModel->fileInfo(index);
 
+    if (info.isShortcut()) {
+        // handle shortcut
+        if (!info.exists()) {
+            QModelIndex srcIndex = proxyModel->mapToSource(index);
+            ((FileSystemModel *)proxyModel->srcModel())->showShortcutInfo(srcIndex);
+            return;;
+        }
+        target = info.symLinkTarget();
+    } else {
+        target = info.absoluteFilePath();
+    }
+    emit selectedFile(target);
 }
 
 void FileWidget::onTreeViewDoubleClicked(const QModelIndex &index)

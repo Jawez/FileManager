@@ -31,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     fileDock = new FileDockWidget(fileModel);
     navDock = new NavDockWidget(fileModel);
     findDock = new QDockWidget();
+    previewDock = new PreviewDockWidget();
 
     cutShortcut = new QShortcut(this);
     copyShortcut = new QShortcut(this);
@@ -116,6 +117,7 @@ void MainWindow::setupWidgets()
 //    splitter->addWidget(widget);
     setCentralWidget(widget);
     connect(widget, &FileWidget::findFiles, this, &MainWindow::onFindFiles);
+    connect(widget, &FileWidget::selectedFile, this, &MainWindow::onSelectedFile);
 
     // dock
     setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
@@ -133,6 +135,7 @@ void MainWindow::setupWidgets()
     addDockWidget(Qt::RightDockWidgetArea, fileDock);
     connectShortcut((FileWidget *)fileDock->widget());
     connect((FileWidget *)fileDock->widget(), &FileWidget::findFiles, this, &MainWindow::onFindFiles);
+    connect((FileWidget *)fileDock->widget(), &FileWidget::selectedFile, this, &MainWindow::onSelectedFile);
 
     // find dock
     FindWidget *findWidget = new FindWidget(nullptr, QDir::currentPath(), "*");
@@ -143,6 +146,11 @@ void MainWindow::setupWidgets()
 //    addDockWidget(Qt::AllDockWidgetAreas, findDock);
     addDockWidget(Qt::RightDockWidgetArea, findDock);
 //    addDockWidget(Qt::BottomDockWidgetArea, findDock);
+
+    // preview dock
+    previewDock->setObjectName(OBJECTNAME_PREVIEW_DOCK);
+    previewDock->setWindowTitle(tr("Preview Dock"));
+    addDockWidget(Qt::RightDockWidgetArea, previewDock);
 }
 
 void MainWindow::setupToolBar()
@@ -190,6 +198,10 @@ void MainWindow::setupMenuBar()
     findDock->toggleViewAction()->setText(tr("&Find Dock"));
     findDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_F);
     viewMenu->addAction(findDock->toggleViewAction());
+
+    previewDock->toggleViewAction()->setText(tr("&Preview Dock"));
+    previewDock->toggleViewAction()->setShortcut(Qt::CTRL | Qt::Key_P);
+    viewMenu->addAction(previewDock->toggleViewAction());
 
     viewMenu->addSeparator();
 
@@ -528,15 +540,20 @@ void MainWindow::onFindFiles(const QString &path, const QString &find)
     ((FindWidget *)findDock->widget())->animateFindClick();
 }
 
+void MainWindow::onSelectedFile(const QString &fileName)
+{
+    previewDock->preview(fileName);
+}
+
 // show about message
 void MainWindow::about()
 {
     static const char message[] =
-        "<p><b>FileManagerDemo</b></p>"
+        "<p><b>FileManager</b></p>"
 
-        "<p>Version:&nbsp;Beta2(x64)</p>"
-        "<p>Author:&nbsp;&nbsp;Javier Zhou</p>"
-        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2021/10/07</p>"
+        "<p>Version:&nbsp;V0.1.2</p>"
+        "<p>Author:&nbsp;&nbsp;EdgeBay</p>"
+        "<p>Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2025/05/22</p>"
 
         "<p></p>"
         "<p>Project:&nbsp;&nbsp;<a href=\"https://github.com/Jawez/FileManager\">Github repository</a>"
@@ -578,6 +595,7 @@ void MainWindow::loadWindowInfo()
     } else {
         fileDock->setHidden(true);
         findDock->setHidden(true);
+        previewDock->setHidden(true);
     }
 
 //    QVariant size = readSettings(CONFIG_GROUP_WINDOW, CONFIG_WIN_SIZE);
@@ -654,5 +672,6 @@ void MainWindow::saveWindowInfo()
     navDock->saveDockInfo();
     fileDock->saveDockInfo();
     ((FindWidget *)findDock->widget())->saveFindWidgetInfo();
+    previewDock->saveDockInfo();
 }
 
