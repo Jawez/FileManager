@@ -1,3 +1,5 @@
+> Qt5 已停止支持，该项目结束更新维护。
+
 # 文件管理器
 
 <img src=".\image\filemanager.png" alt="filemanager" style="zoom: 80%;" />
